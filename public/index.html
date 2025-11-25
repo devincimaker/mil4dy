@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI DJ</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #0a0a0f;
+      --bg-secondary: #12121a;
+      --bg-tertiary: #1a1a25;
+      --accent-primary: #ff3366;
+      --accent-secondary: #00ffaa;
+      --accent-glow: rgba(255, 51, 102, 0.3);
+      --text-primary: #ffffff;
+      --text-secondary: #8888aa;
+      --text-muted: #555566;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Background effects */
+    .bg-gradient {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: 
+        radial-gradient(ellipse at 20% 20%, rgba(255, 51, 102, 0.1) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 80%, rgba(0, 255, 170, 0.08) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 50%, rgba(100, 100, 255, 0.05) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 40px 24px;
+      position: relative;
+      z-index: 1;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+
+    .logo {
+      font-size: 3rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: -0.02em;
+      margin-bottom: 8px;
+    }
+
+    .tagline {
+      color: var(--text-secondary);
+      font-size: 1.1rem;
+      font-weight: 300;
+    }
+
+    /* Status indicator */
+    .status-bar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 40px;
+      padding: 16px 24px;
+      background: var(--bg-secondary);
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .status-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      animation: none;
+    }
+
+    .status-dot.connected {
+      background: var(--accent-secondary);
+      box-shadow: 0 0 12px var(--accent-secondary);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    .status-dot.connecting {
+      background: #ffaa00;
+      animation: pulse 1s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .status-text {
+      font-size: 0.95rem;
+      color: var(--text-secondary);
+    }
+
+    /* Now Playing Card */
+    .now-playing {
+      background: var(--bg-secondary);
+      border-radius: 24px;
+      padding: 32px;
+      margin-bottom: 32px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .now-playing::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+    }
+
+    .section-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+    }
+
+    .track-info {
+      margin-bottom: 24px;
+    }
+
+    .track-title {
+      font-size: 1.75rem;
+      font-weight: 600;
+      margin-bottom: 4px;
+      line-height: 1.2;
+    }
+
+    .track-artist {
+      font-size: 1.1rem;
+      color: var(--text-secondary);
+    }
+
+    .track-meta {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .meta-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+    }
+
+    .meta-label {
+      color: var(--text-muted);
+    }
+
+    .meta-value {
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    /* Energy meter */
+    .energy-display {
+      margin-top: 24px;
+      padding-top: 24px;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .energy-bar {
+      height: 8px;
+      background: var(--bg-tertiary);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 12px;
+    }
+
+    .energy-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent-secondary), var(--accent-primary));
+      border-radius: 4px;
+      transition: width 0.5s ease;
+    }
+
+    /* Mood display */
+    .mood-card {
+      background: var(--bg-secondary);
+      border-radius: 20px;
+      padding: 24px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      margin-bottom: 32px;
+    }
+
+    .mood-level {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .mood-icon {
+      font-size: 2.5rem;
+    }
+
+    .mood-info {
+      flex: 1;
+    }
+
+    .mood-name {
+      font-size: 1.25rem;
+      font-weight: 600;
+      text-transform: capitalize;
+      margin-bottom: 4px;
+    }
+
+    .mood-trend {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+    }
+
+    /* Message log */
+    .log-card {
+      background: var(--bg-secondary);
+      border-radius: 20px;
+      padding: 24px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .log-container {
+      max-height: 200px;
+      overflow-y: auto;
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      font-size: 0.85rem;
+    }
+
+    .log-entry {
+      padding: 8px 0;
+      color: var(--text-secondary);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    }
+
+    .log-entry:last-child {
+      border-bottom: none;
+    }
+
+    .log-time {
+      color: var(--text-muted);
+      margin-right: 12px;
+    }
+
+    /* Placeholder states */
+    .placeholder {
+      color: var(--text-muted);
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-gradient"></div>
+  
+  <div class="container">
+    <header>
+      <h1 class="logo">AI DJ</h1>
+      <p class="tagline">Autonomous music that reads the room</p>
+    </header>
+
+    <div class="status-bar">
+      <div class="status-dot" id="statusDot"></div>
+      <span class="status-text" id="statusText">Connecting...</span>
+    </div>
+
+    <div class="now-playing">
+      <div class="section-label">Now Playing</div>
+      <div class="track-info">
+        <div class="track-title" id="trackTitle">Waiting for track...</div>
+        <div class="track-artist" id="trackArtist">—</div>
+      </div>
+      <div class="track-meta">
+        <div class="meta-item">
+          <span class="meta-label">BPM</span>
+          <span class="meta-value" id="trackBpm">—</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">Key</span>
+          <span class="meta-value" id="trackKey">—</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">Energy</span>
+          <span class="meta-value" id="trackEnergy">—</span>
+        </div>
+      </div>
+      <div class="energy-display">
+        <div class="section-label">Track Energy</div>
+        <div class="energy-bar">
+          <div class="energy-fill" id="energyFill" style="width: 0%"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mood-card">
+      <div class="section-label">Detected Mood</div>
+      <div class="mood-level">
+        <span class="mood-icon" id="moodIcon">🎵</span>
+        <div class="mood-info">
+          <div class="mood-name" id="moodName">Unknown</div>
+          <div class="mood-trend" id="moodTrend">Waiting for mood data...</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="log-card">
+      <div class="section-label">Activity Log</div>
+      <div class="log-container" id="logContainer">
+        <div class="log-entry placeholder">No activity yet...</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Simple WebSocket client for Phase 1 testing
+    const state = {
+      ws: null,
+      connected: false,
+      currentTrack: null,
+      mood: null,
+    };
+
+    const moodIcons = {
+      chill: '😌',
+      warming_up: '🔥',
+      energetic: '💃',
+      peak: '🚀',
+      cooling_down: '🌙',
+    };
+
+    function log(message) {
+      const container = document.getElementById('logContainer');
+      const placeholder = container.querySelector('.placeholder');
+      if (placeholder) placeholder.remove();
+
+      const entry = document.createElement('div');
+      entry.className = 'log-entry';
+      
+      const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+      entry.innerHTML = `<span class="log-time">${time}</span>${message}`;
+      
+      container.insertBefore(entry, container.firstChild);
+
+      // Keep only last 50 entries
+      while (container.children.length > 50) {
+        container.removeChild(container.lastChild);
+      }
+    }
+
+    function updateStatus(connected, text) {
+      const dot = document.getElementById('statusDot');
+      const statusText = document.getElementById('statusText');
+      
+      dot.className = 'status-dot ' + (connected ? 'connected' : 'connecting');
+      statusText.textContent = text;
+    }
+
+    function updateTrack(track) {
+      if (!track) return;
+      
+      state.currentTrack = track;
+      
+      document.getElementById('trackTitle').textContent = track.title;
+      document.getElementById('trackArtist').textContent = track.artist;
+      document.getElementById('trackBpm').textContent = Math.round(track.bpm);
+      document.getElementById('trackKey').textContent = track.key;
+      document.getElementById('trackEnergy').textContent = (track.energy * 100).toFixed(0) + '%';
+      document.getElementById('energyFill').style.width = (track.energy * 100) + '%';
+    }
+
+    function updateMood(mood) {
+      if (!mood) return;
+      
+      state.mood = mood;
+      
+      document.getElementById('moodIcon').textContent = moodIcons[mood.level] || '🎵';
+      document.getElementById('moodName').textContent = mood.level.replace('_', ' ');
+      
+      const trendText = mood.trend === 'rising' ? '↑ Rising' : 
+                        mood.trend === 'falling' ? '↓ Falling' : '→ Stable';
+      document.getElementById('moodTrend').textContent = 
+        `Energy: ${(mood.energy * 100).toFixed(0)}% ${trendText}`;
+    }
+
+    function connect() {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${protocol}//${window.location.host}`;
+      
+      log('Connecting to server...');
+      updateStatus(false, 'Connecting...');
+
+      state.ws = new WebSocket(wsUrl);
+
+      state.ws.onopen = () => {
+        state.connected = true;
+        updateStatus(true, 'Connected');
+        log('Connected to AI DJ server');
+        
+        // Send ready message
+        state.ws.send(JSON.stringify({ type: 'client_ready' }));
+      };
+
+      state.ws.onmessage = (event) => {
+        try {
+          const message = JSON.parse(event.data);
+          handleMessage(message);
+        } catch (e) {
+          console.error('Failed to parse message:', e);
+        }
+      };
+
+      state.ws.onclose = () => {
+        state.connected = false;
+        updateStatus(false, 'Disconnected');
+        log('Disconnected from server');
+        
+        // Auto-reconnect after 3 seconds
+        setTimeout(connect, 3000);
+      };
+
+      state.ws.onerror = (error) => {
+        log('WebSocket error occurred');
+        console.error('WebSocket error:', error);
+      };
+    }
+
+    function handleMessage(message) {
+      switch (message.type) {
+        case 'play_track':
+          updateTrack(message.track);
+          log(`🎵 Now playing: "${message.track.title}" by ${message.track.artist}`);
+          if (message.reason) {
+            log(`   Selection reason: ${message.reason}`);
+          }
+          break;
+
+        case 'status':
+          if (message.currentTrack) {
+            updateTrack(message.currentTrack);
+          }
+          if (message.currentMood) {
+            updateMood(message.currentMood);
+          }
+          log(`Status: ${message.state}`);
+          break;
+
+        case 'error':
+          log(`❌ Error: ${message.error}`);
+          break;
+
+        default:
+          log(`Received: ${message.type}`);
+      }
+    }
+
+    // Start connection
+    connect();
+  </script>
+</body>
+</html>
+
