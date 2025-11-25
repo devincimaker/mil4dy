@@ -40,5 +40,15 @@
     "backgroundAlpha": 0.05,
     "smoothingWindow": 5000,
     "updateInterval": 1000
+  },
+  "reactivity": {
+    "enabled": true,
+    "minTrackPlayTime": 30,
+    "cooldownPeriod": 45,
+    "evaluationInterval": 3000,
+    "thresholds": {
+      "letPlay": 30,
+      "wait": 60
+    }
   }
 }

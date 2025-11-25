@@ -15,13 +15,45 @@ import { DJController } from './controller/index.js';
 interface Config {
   server: { port: number; host: string };
   paths: { library: string; music: string; public: string };
-  audio: { crossfadeDuration: number; triggerTime: number; minTrackPlayTime: number };
-  mood: {
-    randomDetector: { updateInterval: number; maxDrift: number; initialEnergy: number; simulateProgression: boolean };
-    cameraDetector: { smoothingFactor: number; hysteresisTime: number; minEnergyChange: number; timeoutMs: number };
-    thresholds: { chill: number; warmingUp: number; energetic: number; peak: number };
+  audio: {
+    crossfadeDuration: number;
+    triggerTime: number;
+    minTrackPlayTime: number;
   };
-  motionDetection: { threshold: number; minMotionPixels: number; backgroundAlpha: number; smoothingWindow: number; updateInterval: number };
+  mood: {
+    randomDetector: {
+      updateInterval: number;
+      maxDrift: number;
+      initialEnergy: number;
+      simulateProgression: boolean;
+    };
+    cameraDetector: {
+      smoothingFactor: number;
+      hysteresisTime: number;
+      minEnergyChange: number;
+      timeoutMs: number;
+    };
+    thresholds: {
+      chill: number;
+      warmingUp: number;
+      energetic: number;
+      peak: number;
+    };
+  };
+  motionDetection: {
+    threshold: number;
+    minMotionPixels: number;
+    backgroundAlpha: number;
+    smoothingWindow: number;
+    updateInterval: number;
+  };
+  reactivity: {
+    enabled: boolean;
+    minTrackPlayTime: number;
+    cooldownPeriod: number;
+    evaluationInterval: number;
+    thresholds: { letPlay: number; wait: number };
+  };
 }
 
 function loadConfig(): Partial<Config> {
@@ -82,12 +114,21 @@ function parseArgs(args: string[]): CLIOptions {
   // Defaults: config.json values, then env vars, then hardcoded defaults
   const options: CLIOptions = {
     port: parseInt(process.env.PORT ?? String(config.server?.port ?? 3000), 10),
-    library: process.env.LIBRARY_PATH ?? 
-      (config.paths?.library ? path.join(process.cwd(), config.paths.library) : path.join(process.cwd(), 'data', 'library.json')),
-    musicDir: process.env.MUSIC_DIR ?? 
-      (config.paths?.music ? path.join(process.cwd(), config.paths.music) : path.join(process.cwd(), 'music')),
-    publicDir: process.env.PUBLIC_DIR ?? 
-      (config.paths?.public ? path.join(process.cwd(), config.paths.public) : path.join(process.cwd(), 'public')),
+    library:
+      process.env.LIBRARY_PATH ??
+      (config.paths?.library
+        ? path.join(process.cwd(), config.paths.library)
+        : path.join(process.cwd(), 'data', 'library.json')),
+    musicDir:
+      process.env.MUSIC_DIR ??
+      (config.paths?.music
+        ? path.join(process.cwd(), config.paths.music)
+        : path.join(process.cwd(), 'music')),
+    publicDir:
+      process.env.PUBLIC_DIR ??
+      (config.paths?.public
+        ? path.join(process.cwd(), config.paths.public)
+        : path.join(process.cwd(), 'public')),
     help: false,
   };
 
@@ -150,6 +191,8 @@ const dj = new DJController({
   publicDir: options.publicDir,
   port: options.port,
   minTrackPlayTime: config.audio?.minTrackPlayTime,
+  crossfadeDuration: config.audio?.crossfadeDuration,
+  reactivity: config.reactivity,
 });
 
 // Handle graceful shutdown

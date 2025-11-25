@@ -131,6 +131,16 @@ export interface MoodBroadcastMessage extends BaseMessage {
   source: 'camera' | 'random';
 }
 
+/**
+ * Command for early transition (reactive mode).
+ */
+export interface EarlyTransitionMessage extends BaseMessage {
+  type: 'early_transition';
+  track: Track;
+  reason: string;
+  score: number;
+}
+
 // ============================================
 // Union Types
 // ============================================
@@ -156,7 +166,8 @@ export type ServerMessage =
   | ResumeMessage
   | StopMessage
   | ErrorMessage
-  | MoodBroadcastMessage;
+  | MoodBroadcastMessage
+  | EarlyTransitionMessage;
 
 /**
  * Type guard for client messages.
@@ -184,4 +195,3 @@ export function parseClientMessage(json: string): ClientMessage | null {
     return null;
   }
 }
-

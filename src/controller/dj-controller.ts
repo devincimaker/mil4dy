@@ -12,7 +12,13 @@ import {
   RandomMoodDetector,
   CameraMoodDetector,
 } from '../mood/index.js';
-import { SongSelector, SelectionResult } from '../selection/index.js';
+import {
+  SongSelector,
+  SelectionResult,
+  TransitionEvaluator,
+  TransitionContext,
+  TransitionDecision,
+} from '../selection/index.js';
 import {
   DJServer,
   ClientConnection,
@@ -23,9 +29,26 @@ import {
   PauseMessage,
   ResumeMessage,
   MoodBroadcastMessage,
+  EarlyTransitionMessage,
 } from '../server/index.js';
 
 export type DJState = 'idle' | 'starting' | 'playing' | 'paused' | 'stopping';
+
+export interface ReactivityOptions {
+  /** Enable reactive mode (default: true) */
+  enabled?: boolean;
+  /** Minimum track play time before early transition (seconds), default 30 */
+  minTrackPlayTime?: number;
+  /** Cooldown between early transitions (seconds), default 45 */
+  cooldownPeriod?: number;
+  /** How often to evaluate transitions (ms), default 3000 */
+  evaluationInterval?: number;
+  /** Score thresholds for decisions */
+  thresholds?: {
+    letPlay?: number;
+    wait?: number;
+  };
+}
 
 export interface DJControllerOptions {
   /** Path to library.json */
@@ -38,6 +61,10 @@ export interface DJControllerOptions {
   publicDir?: string;
   /** Minimum track play time in seconds before allowing skip (default: 30) */
   minTrackPlayTime?: number;
+  /** Crossfade duration in seconds (default: 8) */
+  crossfadeDuration?: number;
+  /** Reactivity options for early transitions */
+  reactivity?: ReactivityOptions;
 }
 
 /**
@@ -51,6 +78,7 @@ export class DJController {
   private cameraMoodDetector: CameraMoodDetector;
   private selector: SongSelector;
   private server: DJServer;
+  private transitionEvaluator: TransitionEvaluator;
   private options: Required<DJControllerOptions>;
 
   private currentTrack: Track | null = null;
@@ -61,19 +89,52 @@ export class DJController {
   // Track which mood source is active
   private moodSource: 'camera' | 'random' = 'random';
 
+  // Reactive mode state
+  private reactivityEnabled: boolean = true;
+  private moodAtTrackStart: MoodState | null = null;
+  private lastTransitionTime: number = 0;
+  private moodStableSince: number = 0;
+  private lastMoodLevel: string = '';
+  private evaluationInterval: ReturnType<typeof setInterval> | null = null;
+  private waitingForReEvaluation: boolean = false;
+
   constructor(options: DJControllerOptions) {
+    const reactivityOpts = options.reactivity ?? {};
+
     this.options = {
       libraryPath: options.libraryPath,
       musicDir: options.musicDir,
       port: options.port ?? 3000,
       publicDir: options.publicDir ?? 'public',
       minTrackPlayTime: options.minTrackPlayTime ?? 30,
+      crossfadeDuration: options.crossfadeDuration ?? 8,
+      reactivity: {
+        enabled: reactivityOpts.enabled ?? true,
+        minTrackPlayTime: reactivityOpts.minTrackPlayTime ?? 30,
+        cooldownPeriod: reactivityOpts.cooldownPeriod ?? 45,
+        evaluationInterval: reactivityOpts.evaluationInterval ?? 3000,
+        thresholds: {
+          letPlay: reactivityOpts.thresholds?.letPlay ?? 30,
+          wait: reactivityOpts.thresholds?.wait ?? 60,
+        },
+      },
     };
+
+    this.reactivityEnabled = this.options.reactivity.enabled ?? true;
 
     this.library = new MusicLibrary();
     this.randomMoodDetector = new RandomMoodDetector();
     this.cameraMoodDetector = new CameraMoodDetector();
     this.selector = new SongSelector(this.library);
+
+    // Initialize transition evaluator with reactivity options
+    this.transitionEvaluator = new TransitionEvaluator({
+      minTrackPlayTime: this.options.reactivity.minTrackPlayTime,
+      cooldownPeriod: this.options.reactivity.cooldownPeriod,
+      evaluationInterval: this.options.reactivity.evaluationInterval,
+      thresholds: this.options.reactivity.thresholds,
+      crossfadeDuration: this.options.crossfadeDuration,
+    });
 
     // Create server with event handlers
     this.server = new DJServer(
@@ -144,10 +205,18 @@ export class DJController {
       // Start random mood detector (camera detector starts when receiving updates)
       this.randomMoodDetector.start();
 
+      // Initialize reactive mode
+      if (this.reactivityEnabled) {
+        this.startReactiveMode();
+      }
+
       this.state = 'playing';
       console.log('🎧 AI DJ is ready!');
       console.log(`   Library: ${this.library.count()} tracks`);
       console.log(`   Server: http://localhost:${this.server.getPort()}`);
+      console.log(
+        `   Reactive mode: ${this.reactivityEnabled ? 'enabled' : 'disabled'}`
+      );
     } catch (error) {
       this.state = 'idle';
       throw error;
@@ -162,6 +231,7 @@ export class DJController {
 
     this.state = 'stopping';
 
+    this.stopReactiveMode();
     this.randomMoodDetector.stop();
     this.cameraMoodDetector.stop();
     await this.server.stop();
@@ -183,6 +253,7 @@ export class DJController {
     }
 
     this.state = 'paused';
+    this.stopReactiveMode();
     this.randomMoodDetector.stop();
     this.cameraMoodDetector.stop();
 
@@ -208,6 +279,11 @@ export class DJController {
       this.cameraMoodDetector.start();
     } else {
       this.randomMoodDetector.start();
+    }
+
+    // Restart reactive mode
+    if (this.reactivityEnabled) {
+      this.startReactiveMode();
     }
 
     const resumeMessage: ResumeMessage = { type: 'resume' };
@@ -264,8 +340,7 @@ export class DJController {
 
       case 'track_started':
         console.log(`   Track started: ${message.trackId}`);
-        this.currentTrackStartTime = Date.now();
-        this.selector.recordPlay(message.trackId);
+        this.handleTrackStarted(message.trackId);
         break;
 
       case 'track_ending':
@@ -369,9 +444,15 @@ export class DJController {
 
   /**
    * Handle mood changes from detector.
-   * Broadcasts mood to all connected clients.
+   * Broadcasts mood to all connected clients and tracks mood stability.
    */
   private handleMoodChange(mood: MoodState): void {
+    // Track mood stability for reactive mode
+    if (mood.level !== this.lastMoodLevel) {
+      this.moodStableSince = Date.now();
+      this.lastMoodLevel = mood.level;
+    }
+
     // Log significant mood changes
     console.log(
       `🌡️  Mood: ${mood.level} (${mood.energy.toFixed(2)}) [${mood.trend}] (${this.moodSource})`
@@ -434,5 +515,198 @@ export class DJController {
       uptime: Date.now() - this.startTime,
     };
     connection.send(status);
+  }
+
+  // ============================================
+  // Reactive Mode Methods
+  // ============================================
+
+  /**
+   * Handle track started event - capture mood at track start.
+   */
+  private handleTrackStarted(trackId: string): void {
+    this.currentTrackStartTime = Date.now();
+    this.moodAtTrackStart = { ...this.getCurrentMood() };
+    this.lastMoodLevel = this.moodAtTrackStart.level;
+    this.moodStableSince = Date.now();
+    this.selector.recordPlay(trackId);
+
+    // Update current track reference
+    const track = this.library.getById(trackId);
+    if (track) {
+      this.currentTrack = track;
+    }
+
+    console.log(
+      `   📍 Mood at track start: ${this.moodAtTrackStart.level} (${this.moodAtTrackStart.energy.toFixed(2)})`
+    );
+  }
+
+  /**
+   * Start reactive mode - begins periodic transition evaluation.
+   */
+  private startReactiveMode(): void {
+    if (this.evaluationInterval) {
+      return; // Already running
+    }
+
+    const interval = this.options.reactivity.evaluationInterval;
+    console.log(`⚡ Reactive mode started (evaluating every ${interval}ms)`);
+
+    this.evaluationInterval = setInterval(() => {
+      this.evaluateTransition();
+    }, interval);
+  }
+
+  /**
+   * Stop reactive mode.
+   */
+  private stopReactiveMode(): void {
+    if (this.evaluationInterval) {
+      clearInterval(this.evaluationInterval);
+      this.evaluationInterval = null;
+      console.log('⚡ Reactive mode stopped');
+    }
+  }
+
+  /**
+   * Evaluate whether to trigger an early transition.
+   */
+  private evaluateTransition(): void {
+    // Skip if not in playing state or no current track
+    if (
+      this.state !== 'playing' ||
+      !this.currentTrack ||
+      !this.moodAtTrackStart
+    ) {
+      return;
+    }
+
+    const currentMood = this.getCurrentMood();
+    const trackPlayedSeconds = (Date.now() - this.currentTrackStartTime) / 1000;
+    const timeSinceLastTransition =
+      (Date.now() - this.lastTransitionTime) / 1000;
+    const moodStabilitySeconds = (Date.now() - this.moodStableSince) / 1000;
+
+    const context: TransitionContext = {
+      currentTrack: this.currentTrack,
+      currentMood,
+      moodAtTrackStart: this.moodAtTrackStart,
+      trackPlayedSeconds,
+      trackDuration: this.currentTrack.duration,
+      timeSinceLastTransition,
+      moodStabilitySeconds,
+    };
+
+    const decision = this.transitionEvaluator.evaluate(context);
+
+    // Log evaluation for debugging (only if interesting)
+    if (decision.score > 20) {
+      console.log(
+        `🤔 Evaluating: score=${decision.score.toFixed(0)}, action=${decision.action}`
+      );
+      console.log(`   ${decision.reason}`);
+    }
+
+    // Act on the decision
+    switch (decision.action) {
+      case 'transition_now':
+        this.triggerEarlyTransition(decision);
+        break;
+
+      case 'wait':
+        // Schedule a re-evaluation if we're waiting
+        if (!this.waitingForReEvaluation && decision.waitTime) {
+          this.waitingForReEvaluation = true;
+          console.log(
+            `⏳ Waiting ${decision.waitTime}s before re-evaluating...`
+          );
+          setTimeout(() => {
+            this.waitingForReEvaluation = false;
+          }, decision.waitTime * 1000);
+        }
+        break;
+
+      case 'let_play':
+        // Do nothing, let the track continue
+        break;
+    }
+  }
+
+  /**
+   * Trigger an early transition to a new track.
+   */
+  private triggerEarlyTransition(decision: TransitionDecision): void {
+    if (!this.currentTrack) return;
+
+    console.log('⚡ EARLY TRANSITION TRIGGERED');
+    console.log(`   Score: ${decision.score.toFixed(0)}`);
+    console.log(`   Reason: ${decision.reason}`);
+
+    // Record the transition time for cooldown
+    this.lastTransitionTime = Date.now();
+
+    // Select a new track based on current mood
+    const mood = this.getCurrentMood();
+    const selection = this.selector.selectNext(mood, this.currentTrack);
+
+    console.log(
+      `   New track: "${selection.track.title}" by ${selection.track.artist}`
+    );
+
+    // Broadcast early transition to all clients
+    const earlyTransitionMessage: EarlyTransitionMessage = {
+      type: 'early_transition',
+      track: selection.track,
+      reason: decision.reason,
+      score: decision.score,
+    };
+
+    const clientCount = this.server.broadcast(earlyTransitionMessage);
+    console.log(`   Notified ${clientCount} client(s)`);
+
+    // Update next track reference
+    this.nextTrack = selection.track;
+  }
+
+  /**
+   * Enable or disable reactive mode at runtime.
+   */
+  setReactivityEnabled(enabled: boolean): void {
+    this.reactivityEnabled = enabled;
+
+    if (enabled && this.state === 'playing' && !this.evaluationInterval) {
+      this.startReactiveMode();
+    } else if (!enabled && this.evaluationInterval) {
+      this.stopReactiveMode();
+    }
+
+    console.log(`⚡ Reactive mode ${enabled ? 'enabled' : 'disabled'}`);
+  }
+
+  /**
+   * Check if reactive mode is enabled.
+   */
+  isReactivityEnabled(): boolean {
+    return this.reactivityEnabled;
+  }
+
+  /**
+   * Get current reactive mode stats for debugging.
+   */
+  getReactiveStats(): {
+    enabled: boolean;
+    moodAtTrackStart: MoodState | null;
+    trackPlayedSeconds: number;
+    timeSinceLastTransition: number;
+    moodStabilitySeconds: number;
+  } {
+    return {
+      enabled: this.reactivityEnabled,
+      moodAtTrackStart: this.moodAtTrackStart,
+      trackPlayedSeconds: (Date.now() - this.currentTrackStartTime) / 1000,
+      timeSinceLastTransition: (Date.now() - this.lastTransitionTime) / 1000,
+      moodStabilitySeconds: (Date.now() - this.moodStableSince) / 1000,
+    };
   }
 }

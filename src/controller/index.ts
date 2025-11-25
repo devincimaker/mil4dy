@@ -4,4 +4,9 @@
  * Exports DJ controller functionality.
  */
 
-export { DJController, DJControllerOptions, DJState } from './dj-controller.js';
+export {
+  DJController,
+  DJControllerOptions,
+  DJState,
+  ReactivityOptions,
+} from './dj-controller.js';

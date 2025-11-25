@@ -1,1432 +1,1554 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI DJ</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <style>
-    :root {
-      --bg-primary: #0a0a0f;
-      --bg-secondary: #12121a;
-      --bg-tertiary: #1a1a25;
-      --accent-primary: #ff3366;
-      --accent-secondary: #00ffaa;
-      --accent-glow: rgba(255, 51, 102, 0.3);
-      --text-primary: #ffffff;
-      --text-secondary: #8888aa;
-      --text-muted: #555566;
-    }
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI DJ</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg-primary: #0a0a0f;
+        --bg-secondary: #12121a;
+        --bg-tertiary: #1a1a25;
+        --accent-primary: #ff3366;
+        --accent-secondary: #00ffaa;
+        --accent-glow: rgba(255, 51, 102, 0.3);
+        --text-primary: #ffffff;
+        --text-secondary: #8888aa;
+        --text-muted: #555566;
+      }
 
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
 
-    body {
-      font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
-      background: var(--bg-primary);
-      color: var(--text-primary);
-      min-height: 100vh;
-      overflow-x: hidden;
-    }
+      body {
+        font-family:
+          'Outfit',
+          -apple-system,
+          BlinkMacSystemFont,
+          sans-serif;
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        min-height: 100vh;
+        overflow-x: hidden;
+      }
 
-    /* Background effects */
-    .bg-gradient {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: 
-        radial-gradient(ellipse at 20% 20%, rgba(255, 51, 102, 0.1) 0%, transparent 50%),
-        radial-gradient(ellipse at 80% 80%, rgba(0, 255, 170, 0.08) 0%, transparent 50%),
-        radial-gradient(ellipse at 50% 50%, rgba(100, 100, 255, 0.05) 0%, transparent 70%);
-      pointer-events: none;
-      z-index: 0;
-    }
+      /* Background effects */
+      .bg-gradient {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background:
+          radial-gradient(
+            ellipse at 20% 20%,
+            rgba(255, 51, 102, 0.1) 0%,
+            transparent 50%
+          ),
+          radial-gradient(
+            ellipse at 80% 80%,
+            rgba(0, 255, 170, 0.08) 0%,
+            transparent 50%
+          ),
+          radial-gradient(
+            ellipse at 50% 50%,
+            rgba(100, 100, 255, 0.05) 0%,
+            transparent 70%
+          );
+        pointer-events: none;
+        z-index: 0;
+      }
 
-    .container {
-      max-width: 900px;
-      margin: 0 auto;
-      padding: 40px 24px;
-      position: relative;
-      z-index: 1;
-    }
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 40px 24px;
+        position: relative;
+        z-index: 1;
+      }
 
-    header {
-      text-align: center;
-      margin-bottom: 48px;
-    }
+      header {
+        text-align: center;
+        margin-bottom: 48px;
+      }
 
-    .logo {
-      font-size: 3rem;
-      font-weight: 700;
-      background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      letter-spacing: -0.02em;
-      margin-bottom: 8px;
-    }
+      .logo {
+        font-size: 3rem;
+        font-weight: 700;
+        background: linear-gradient(
+          135deg,
+          var(--accent-primary),
+          var(--accent-secondary)
+        );
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        letter-spacing: -0.02em;
+        margin-bottom: 8px;
+      }
 
-    .tagline {
-      color: var(--text-secondary);
-      font-size: 1.1rem;
-      font-weight: 300;
-    }
+      .tagline {
+        color: var(--text-secondary);
+        font-size: 1.1rem;
+        font-weight: 300;
+      }
 
-    /* Status indicator */
-    .status-bar {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-      margin-bottom: 40px;
-      padding: 16px 24px;
-      background: var(--bg-secondary);
-      border-radius: 16px;
-      border: 1px solid rgba(255, 255, 255, 0.05);
-    }
+      /* Status indicator */
+      .status-bar {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        margin-bottom: 40px;
+        padding: 16px 24px;
+        background: var(--bg-secondary);
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+      }
 
-    .status-dot {
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      background: var(--text-muted);
-      animation: none;
-    }
+      .status-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: var(--text-muted);
+        animation: none;
+      }
 
-    .status-dot.connected {
-      background: var(--accent-secondary);
-      box-shadow: 0 0 12px var(--accent-secondary);
-      animation: pulse 2s ease-in-out infinite;
-    }
+      .status-dot.connected {
+        background: var(--accent-secondary);
+        box-shadow: 0 0 12px var(--accent-secondary);
+        animation: pulse 2s ease-in-out infinite;
+      }
 
-    .status-dot.connecting {
-      background: #ffaa00;
-      animation: pulse 1s ease-in-out infinite;
-    }
+      .status-dot.connecting {
+        background: #ffaa00;
+        animation: pulse 1s ease-in-out infinite;
+      }
 
-    .status-dot.playing {
-      background: var(--accent-primary);
-      box-shadow: 0 0 12px var(--accent-primary);
-      animation: pulse 1s ease-in-out infinite;
-    }
+      .status-dot.playing {
+        background: var(--accent-primary);
+        box-shadow: 0 0 12px var(--accent-primary);
+        animation: pulse 1s ease-in-out infinite;
+      }
 
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.5; }
-    }
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+      }
 
-    .status-text {
-      font-size: 0.95rem;
-      color: var(--text-secondary);
-    }
+      .status-text {
+        font-size: 0.95rem;
+        color: var(--text-secondary);
+      }
 
-    /* Now Playing Card */
-    .now-playing {
-      background: var(--bg-secondary);
-      border-radius: 24px;
-      padding: 32px;
-      margin-bottom: 32px;
-      border: 1px solid rgba(255, 255, 255, 0.05);
-      position: relative;
-      overflow: hidden;
-    }
+      /* Now Playing Card */
+      .now-playing {
+        background: var(--bg-secondary);
+        border-radius: 24px;
+        padding: 32px;
+        margin-bottom: 32px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        position: relative;
+        overflow: hidden;
+      }
 
-    .now-playing::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 3px;
-      background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
-    }
+      .now-playing::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(
+          90deg,
+          var(--accent-primary),
+          var(--accent-secondary)
+        );
+      }
 
-    .section-label {
-      font-size: 0.75rem;
-      text-transform: uppercase;
-      letter-spacing: 0.15em;
-      color: var(--text-muted);
-      margin-bottom: 16px;
-    }
+      .section-label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.15em;
+        color: var(--text-muted);
+        margin-bottom: 16px;
+      }
 
-    .track-info {
-      margin-bottom: 24px;
-    }
+      .track-info {
+        margin-bottom: 24px;
+      }
 
-    .track-title {
-      font-size: 1.75rem;
-      font-weight: 600;
-      margin-bottom: 4px;
-      line-height: 1.2;
-    }
+      .track-title {
+        font-size: 1.75rem;
+        font-weight: 600;
+        margin-bottom: 4px;
+        line-height: 1.2;
+      }
 
-    .track-artist {
-      font-size: 1.1rem;
-      color: var(--text-secondary);
-    }
+      .track-artist {
+        font-size: 1.1rem;
+        color: var(--text-secondary);
+      }
 
-    .track-meta {
-      display: flex;
-      gap: 20px;
-      flex-wrap: wrap;
-      margin-bottom: 24px;
-    }
+      .track-meta {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+        margin-bottom: 24px;
+      }
 
-    .meta-item {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 0.9rem;
-      color: var(--text-secondary);
-    }
+      .meta-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+      }
 
-    .meta-label {
-      color: var(--text-muted);
-    }
+      .meta-label {
+        color: var(--text-muted);
+      }
 
-    .meta-value {
-      font-weight: 500;
-      color: var(--text-primary);
-    }
+      .meta-value {
+        font-weight: 500;
+        color: var(--text-primary);
+      }
 
-    /* Playback progress */
-    .playback-section {
-      margin-top: 24px;
-      padding-top: 24px;
-      border-top: 1px solid rgba(255, 255, 255, 0.05);
-    }
+      /* Playback progress */
+      .playback-section {
+        margin-top: 24px;
+        padding-top: 24px;
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
+      }
 
-    .progress-container {
-      margin-bottom: 12px;
-    }
+      .progress-container {
+        margin-bottom: 12px;
+      }
 
-    .progress-bar {
-      height: 6px;
-      background: var(--bg-tertiary);
-      border-radius: 3px;
-      overflow: hidden;
-      cursor: pointer;
-    }
+      .progress-bar {
+        height: 6px;
+        background: var(--bg-tertiary);
+        border-radius: 3px;
+        overflow: hidden;
+        cursor: pointer;
+      }
 
-    .progress-fill {
-      height: 100%;
-      background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
-      border-radius: 3px;
-      transition: width 0.25s linear;
-      width: 0%;
-    }
+      .progress-fill {
+        height: 100%;
+        background: linear-gradient(
+          90deg,
+          var(--accent-primary),
+          var(--accent-secondary)
+        );
+        border-radius: 3px;
+        transition: width 0.25s linear;
+        width: 0%;
+      }
 
-    .time-display {
-      display: flex;
-      justify-content: space-between;
-      font-size: 0.85rem;
-      color: var(--text-secondary);
-      font-variant-numeric: tabular-nums;
-    }
+      .time-display {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+        font-variant-numeric: tabular-nums;
+      }
 
-    /* Controls */
-    .controls {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 16px;
-      margin-top: 24px;
-    }
+      /* Controls */
+      .controls {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        margin-top: 24px;
+      }
 
-    .control-btn {
-      width: 56px;
-      height: 56px;
-      border-radius: 50%;
-      border: none;
-      background: var(--bg-tertiary);
-      color: var(--text-primary);
-      font-size: 1.5rem;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
+      .control-btn {
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        border: none;
+        background: var(--bg-tertiary);
+        color: var(--text-primary);
+        font-size: 1.5rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
 
-    .control-btn:hover {
-      background: var(--accent-primary);
-      transform: scale(1.05);
-    }
+      .control-btn:hover {
+        background: var(--accent-primary);
+        transform: scale(1.05);
+      }
 
-    .control-btn:active {
-      transform: scale(0.95);
-    }
+      .control-btn:active {
+        transform: scale(0.95);
+      }
 
-    .control-btn.primary {
-      width: 72px;
-      height: 72px;
-      font-size: 2rem;
-      background: linear-gradient(135deg, var(--accent-primary), #ff6688);
-    }
+      .control-btn.primary {
+        width: 72px;
+        height: 72px;
+        font-size: 2rem;
+        background: linear-gradient(135deg, var(--accent-primary), #ff6688);
+      }
 
-    .control-btn.primary:hover {
-      box-shadow: 0 0 24px var(--accent-glow);
-    }
+      .control-btn.primary:hover {
+        box-shadow: 0 0 24px var(--accent-glow);
+      }
 
-    /* Volume control */
-    .volume-container {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-top: 20px;
-      padding-top: 20px;
-      border-top: 1px solid rgba(255, 255, 255, 0.05);
-    }
+      /* Volume control */
+      .volume-container {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
+      }
 
-    .volume-icon {
-      font-size: 1.25rem;
-      cursor: pointer;
-    }
+      .volume-icon {
+        font-size: 1.25rem;
+        cursor: pointer;
+      }
 
-    .volume-slider {
-      flex: 1;
-      height: 6px;
-      -webkit-appearance: none;
-      appearance: none;
-      background: var(--bg-tertiary);
-      border-radius: 3px;
-      outline: none;
-    }
+      .volume-slider {
+        flex: 1;
+        height: 6px;
+        -webkit-appearance: none;
+        appearance: none;
+        background: var(--bg-tertiary);
+        border-radius: 3px;
+        outline: none;
+      }
 
-    .volume-slider::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      appearance: none;
-      width: 16px;
-      height: 16px;
-      border-radius: 50%;
-      background: var(--accent-secondary);
-      cursor: pointer;
-      transition: transform 0.1s ease;
-    }
+      .volume-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: var(--accent-secondary);
+        cursor: pointer;
+        transition: transform 0.1s ease;
+      }
 
-    .volume-slider::-webkit-slider-thumb:hover {
-      transform: scale(1.2);
-    }
+      .volume-slider::-webkit-slider-thumb:hover {
+        transform: scale(1.2);
+      }
 
-    /* Energy meter */
-    .energy-display {
-      margin-top: 24px;
-      padding-top: 24px;
-      border-top: 1px solid rgba(255, 255, 255, 0.05);
-    }
+      /* Energy meter */
+      .energy-display {
+        margin-top: 24px;
+        padding-top: 24px;
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
+      }
 
-    .energy-bar {
-      height: 8px;
-      background: var(--bg-tertiary);
-      border-radius: 4px;
-      overflow: hidden;
-      margin-top: 12px;
-    }
+      .energy-bar {
+        height: 8px;
+        background: var(--bg-tertiary);
+        border-radius: 4px;
+        overflow: hidden;
+        margin-top: 12px;
+      }
 
-    .energy-fill {
-      height: 100%;
-      background: linear-gradient(90deg, var(--accent-secondary), var(--accent-primary));
-      border-radius: 4px;
-      transition: width 0.5s ease;
-    }
+      .energy-fill {
+        height: 100%;
+        background: linear-gradient(
+          90deg,
+          var(--accent-secondary),
+          var(--accent-primary)
+        );
+        border-radius: 4px;
+        transition: width 0.5s ease;
+      }
 
-    /* Up Next */
-    .up-next {
-      background: var(--bg-secondary);
-      border-radius: 20px;
-      padding: 20px 24px;
-      border: 1px solid rgba(255, 255, 255, 0.05);
-      margin-bottom: 32px;
-      display: none;
-    }
+      /* Up Next */
+      .up-next {
+        background: var(--bg-secondary);
+        border-radius: 20px;
+        padding: 20px 24px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        margin-bottom: 32px;
+        display: none;
+      }
 
-    .up-next.visible {
-      display: block;
-    }
+      .up-next.visible {
+        display: block;
+      }
 
-    .up-next-content {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-    }
+      .up-next-content {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
 
-    .up-next-icon {
-      font-size: 1.5rem;
-      opacity: 0.7;
-    }
+      .up-next-icon {
+        font-size: 1.5rem;
+        opacity: 0.7;
+      }
 
-    .up-next-info {
-      flex: 1;
-    }
+      .up-next-info {
+        flex: 1;
+      }
 
-    .up-next-title {
-      font-weight: 500;
-      margin-bottom: 2px;
-    }
+      .up-next-title {
+        font-weight: 500;
+        margin-bottom: 2px;
+      }
 
-    .up-next-artist {
-      font-size: 0.9rem;
-      color: var(--text-secondary);
-    }
+      .up-next-artist {
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+      }
 
-    .up-next-reason {
-      font-size: 0.8rem;
-      color: var(--text-muted);
-      margin-top: 4px;
-      font-style: italic;
-    }
+      .up-next-reason {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        margin-top: 4px;
+        font-style: italic;
+      }
 
-    .up-next-countdown {
-      font-size: 1.5rem;
-      font-weight: 600;
-      color: var(--accent-secondary);
-      font-variant-numeric: tabular-nums;
-      min-width: 50px;
-      text-align: right;
-    }
+      .up-next-countdown {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: var(--accent-secondary);
+        font-variant-numeric: tabular-nums;
+        min-width: 50px;
+        text-align: right;
+      }
 
-    /* Mood display */
-    .mood-card {
-      background: var(--bg-secondary);
-      border-radius: 20px;
-      padding: 24px;
-      border: 1px solid rgba(255, 255, 255, 0.05);
-      margin-bottom: 32px;
-    }
+      /* Mood display */
+      .mood-card {
+        background: var(--bg-secondary);
+        border-radius: 20px;
+        padding: 24px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        margin-bottom: 32px;
+      }
 
-    .mood-level {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-    }
+      .mood-level {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
 
-    .mood-icon {
-      font-size: 2.5rem;
-    }
+      .mood-icon {
+        font-size: 2.5rem;
+      }
 
-    .mood-info {
-      flex: 1;
-    }
+      .mood-info {
+        flex: 1;
+      }
 
-    .mood-name {
-      font-size: 1.25rem;
-      font-weight: 600;
-      text-transform: capitalize;
-      margin-bottom: 4px;
-    }
+      .mood-name {
+        font-size: 1.25rem;
+        font-weight: 600;
+        text-transform: capitalize;
+        margin-bottom: 4px;
+      }
 
-    .mood-trend {
-      font-size: 0.9rem;
-      color: var(--text-secondary);
-    }
+      .mood-trend {
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+      }
 
-    /* Mood change animation */
-    .mood-card.mood-changed {
-      animation: moodPulse 0.6s ease-out;
-    }
+      /* Mood change animation */
+      .mood-card.mood-changed {
+        animation: moodPulse 0.6s ease-out;
+      }
 
-    @keyframes moodPulse {
-      0% {
-        box-shadow: 0 0 0 0 rgba(0, 255, 170, 0.4);
+      @keyframes moodPulse {
+        0% {
+          box-shadow: 0 0 0 0 rgba(0, 255, 170, 0.4);
+          border-color: var(--accent-secondary);
+        }
+        70% {
+          box-shadow: 0 0 0 12px rgba(0, 255, 170, 0);
+          border-color: var(--accent-secondary);
+        }
+        100% {
+          box-shadow: 0 0 0 0 rgba(0, 255, 170, 0);
+          border-color: rgba(255, 255, 255, 0.05);
+        }
+      }
+
+      /* Message log */
+      .log-card {
+        background: var(--bg-secondary);
+        border-radius: 20px;
+        padding: 24px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+      }
+
+      .log-container {
+        max-height: 200px;
+        overflow-y: auto;
+        font-family: 'JetBrains Mono', 'Fira Code', monospace;
+        font-size: 0.85rem;
+      }
+
+      .log-entry {
+        padding: 8px 0;
+        color: var(--text-secondary);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+      }
+
+      .log-entry:last-child {
+        border-bottom: none;
+      }
+
+      .log-time {
+        color: var(--text-muted);
+        margin-right: 12px;
+      }
+
+      /* Placeholder states */
+      .placeholder {
+        color: var(--text-muted);
+        font-style: italic;
+      }
+
+      /* Camera Card */
+      .camera-card {
+        background: var(--bg-secondary);
+        border-radius: 20px;
+        padding: 24px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        margin-bottom: 32px;
+      }
+
+      .camera-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+      }
+
+      .camera-controls {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .camera-toggle {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px;
+        background: var(--bg-tertiary);
+        border: none;
+        border-radius: 20px;
+        color: var(--text-primary);
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .camera-toggle:hover {
+        background: var(--accent-primary);
+      }
+
+      .camera-toggle.active {
+        background: var(--accent-secondary);
+        color: var(--bg-primary);
+      }
+
+      .camera-select {
+        padding: 8px 12px;
+        background: var(--bg-tertiary);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        color: var(--text-primary);
+        font-size: 0.85rem;
+        cursor: pointer;
+        max-width: 200px;
+      }
+
+      .camera-select:focus {
+        outline: none;
         border-color: var(--accent-secondary);
       }
-      70% {
-        box-shadow: 0 0 0 12px rgba(0, 255, 170, 0);
-        border-color: var(--accent-secondary);
+
+      .camera-preview-container {
+        display: flex;
+        gap: 16px;
+        margin-bottom: 16px;
       }
-      100% {
-        box-shadow: 0 0 0 0 rgba(0, 255, 170, 0);
-        border-color: rgba(255, 255, 255, 0.05);
+
+      .camera-preview {
+        position: relative;
+        flex: 1;
+        aspect-ratio: 4/3;
+        background: var(--bg-tertiary);
+        border-radius: 12px;
+        overflow: hidden;
       }
-    }
 
-    /* Message log */
-    .log-card {
-      background: var(--bg-secondary);
-      border-radius: 20px;
-      padding: 24px;
-      border: 1px solid rgba(255, 255, 255, 0.05);
-    }
+      .camera-preview video,
+      .camera-preview canvas {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
 
-    .log-container {
-      max-height: 200px;
-      overflow-y: auto;
-      font-family: 'JetBrains Mono', 'Fira Code', monospace;
-      font-size: 0.85rem;
-    }
+      .camera-preview-label {
+        position: absolute;
+        bottom: 8px;
+        left: 8px;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--text-muted);
+        background: rgba(0, 0, 0, 0.5);
+        padding: 4px 8px;
+        border-radius: 4px;
+      }
 
-    .log-entry {
-      padding: 8px 0;
-      color: var(--text-secondary);
-      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
-    }
+      .camera-placeholder {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        color: var(--text-muted);
+      }
 
-    .log-entry:last-child {
-      border-bottom: none;
-    }
+      .camera-placeholder-icon {
+        font-size: 3rem;
+        margin-bottom: 12px;
+        opacity: 0.5;
+      }
 
-    .log-time {
-      color: var(--text-muted);
-      margin-right: 12px;
-    }
+      .motion-stats {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+      }
 
-    /* Placeholder states */
-    .placeholder {
-      color: var(--text-muted);
-      font-style: italic;
-    }
+      .motion-stat {
+        text-align: center;
+        padding: 12px;
+        background: var(--bg-tertiary);
+        border-radius: 12px;
+      }
 
-    /* Camera Card */
-    .camera-card {
-      background: var(--bg-secondary);
-      border-radius: 20px;
-      padding: 24px;
-      border: 1px solid rgba(255, 255, 255, 0.05);
-      margin-bottom: 32px;
-    }
+      .motion-stat-value {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: var(--accent-secondary);
+        font-variant-numeric: tabular-nums;
+      }
 
-    .camera-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 16px;
-    }
+      .motion-stat-label {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        margin-top: 4px;
+      }
 
-    .camera-controls {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
+      .motion-bar-container {
+        margin-top: 16px;
+      }
 
-    .camera-toggle {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 16px;
-      background: var(--bg-tertiary);
-      border: none;
-      border-radius: 20px;
-      color: var(--text-primary);
-      font-size: 0.9rem;
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
+      .motion-bar {
+        height: 8px;
+        background: var(--bg-tertiary);
+        border-radius: 4px;
+        overflow: hidden;
+      }
 
-    .camera-toggle:hover {
-      background: var(--accent-primary);
-    }
+      .motion-bar-fill {
+        height: 100%;
+        background: linear-gradient(
+          90deg,
+          var(--accent-secondary),
+          var(--accent-primary)
+        );
+        border-radius: 4px;
+        transition: width 0.1s ease;
+        width: 0%;
+      }
 
-    .camera-toggle.active {
-      background: var(--accent-secondary);
-      color: var(--bg-primary);
-    }
+      /* Click to start overlay */
+      .start-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(10, 10, 15, 0.95);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        cursor: pointer;
+      }
 
-    .camera-select {
-      padding: 8px 12px;
-      background: var(--bg-tertiary);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 8px;
-      color: var(--text-primary);
-      font-size: 0.85rem;
-      cursor: pointer;
-      max-width: 200px;
-    }
+      .start-overlay.hidden {
+        display: none;
+      }
 
-    .camera-select:focus {
-      outline: none;
-      border-color: var(--accent-secondary);
-    }
+      .start-icon {
+        font-size: 5rem;
+        margin-bottom: 24px;
+        animation: bounce 2s ease-in-out infinite;
+      }
 
-    .camera-preview-container {
-      display: flex;
-      gap: 16px;
-      margin-bottom: 16px;
-    }
+      .start-text {
+        font-size: 1.5rem;
+        color: var(--text-secondary);
+      }
 
-    .camera-preview {
-      position: relative;
-      flex: 1;
-      aspect-ratio: 4/3;
-      background: var(--bg-tertiary);
-      border-radius: 12px;
-      overflow: hidden;
-    }
-
-    .camera-preview video,
-    .camera-preview canvas {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-
-    .camera-preview-label {
-      position: absolute;
-      bottom: 8px;
-      left: 8px;
-      font-size: 0.7rem;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      color: var(--text-muted);
-      background: rgba(0, 0, 0, 0.5);
-      padding: 4px 8px;
-      border-radius: 4px;
-    }
-
-    .camera-placeholder {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100%;
-      color: var(--text-muted);
-    }
-
-    .camera-placeholder-icon {
-      font-size: 3rem;
-      margin-bottom: 12px;
-      opacity: 0.5;
-    }
-
-    .motion-stats {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 16px;
-    }
-
-    .motion-stat {
-      text-align: center;
-      padding: 12px;
-      background: var(--bg-tertiary);
-      border-radius: 12px;
-    }
-
-    .motion-stat-value {
-      font-size: 1.5rem;
-      font-weight: 600;
-      color: var(--accent-secondary);
-      font-variant-numeric: tabular-nums;
-    }
-
-    .motion-stat-label {
-      font-size: 0.75rem;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      margin-top: 4px;
-    }
-
-    .motion-bar-container {
-      margin-top: 16px;
-    }
-
-    .motion-bar {
-      height: 8px;
-      background: var(--bg-tertiary);
-      border-radius: 4px;
-      overflow: hidden;
-    }
-
-    .motion-bar-fill {
-      height: 100%;
-      background: linear-gradient(90deg, var(--accent-secondary), var(--accent-primary));
-      border-radius: 4px;
-      transition: width 0.1s ease;
-      width: 0%;
-    }
-
-    /* Click to start overlay */
-    .start-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(10, 10, 15, 0.95);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      z-index: 1000;
-      cursor: pointer;
-    }
-
-    .start-overlay.hidden {
-      display: none;
-    }
-
-    .start-icon {
-      font-size: 5rem;
-      margin-bottom: 24px;
-      animation: bounce 2s ease-in-out infinite;
-    }
-
-    .start-text {
-      font-size: 1.5rem;
-      color: var(--text-secondary);
-    }
-
-    @keyframes bounce {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-10px); }
-    }
-  </style>
-</head>
-<body>
-  <!-- Click to start overlay (needed for audio context) -->
-  <div class="start-overlay" id="startOverlay">
-    <div class="start-icon">🎧</div>
-    <div class="start-text">Click anywhere to start the party</div>
-  </div>
-
-  <div class="bg-gradient"></div>
-  
-  <div class="container">
-    <header>
-      <h1 class="logo">AI DJ</h1>
-      <p class="tagline">Autonomous music that reads the room</p>
-    </header>
-
-    <div class="status-bar">
-      <div class="status-dot" id="statusDot"></div>
-      <span class="status-text" id="statusText">Connecting...</span>
+      @keyframes bounce {
+        0%,
+        100% {
+          transform: translateY(0);
+        }
+        50% {
+          transform: translateY(-10px);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Click to start overlay (needed for audio context) -->
+    <div class="start-overlay" id="startOverlay">
+      <div class="start-icon">🎧</div>
+      <div class="start-text">Click anywhere to start the party</div>
     </div>
 
-    <div class="now-playing">
-      <div class="section-label">Now Playing</div>
-      <div class="track-info">
-        <div class="track-title" id="trackTitle">Waiting for track...</div>
-        <div class="track-artist" id="trackArtist">—</div>
-      </div>
-      <div class="track-meta">
-        <div class="meta-item">
-          <span class="meta-label">BPM</span>
-          <span class="meta-value" id="trackBpm">—</span>
-        </div>
-        <div class="meta-item">
-          <span class="meta-label">Key</span>
-          <span class="meta-value" id="trackKey">—</span>
-        </div>
-        <div class="meta-item">
-          <span class="meta-label">Energy</span>
-          <span class="meta-value" id="trackEnergy">—</span>
-        </div>
+    <div class="bg-gradient"></div>
+
+    <div class="container">
+      <header>
+        <h1 class="logo">AI DJ</h1>
+        <p class="tagline">Autonomous music that reads the room</p>
+      </header>
+
+      <div class="status-bar">
+        <div class="status-dot" id="statusDot"></div>
+        <span class="status-text" id="statusText">Connecting...</span>
       </div>
 
-      <div class="playback-section">
-        <div class="progress-container">
-          <div class="progress-bar" id="progressBar">
-            <div class="progress-fill" id="progressFill"></div>
+      <div class="now-playing">
+        <div class="section-label">Now Playing</div>
+        <div class="track-info">
+          <div class="track-title" id="trackTitle">Waiting for track...</div>
+          <div class="track-artist" id="trackArtist">—</div>
+        </div>
+        <div class="track-meta">
+          <div class="meta-item">
+            <span class="meta-label">BPM</span>
+            <span class="meta-value" id="trackBpm">—</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Key</span>
+            <span class="meta-value" id="trackKey">—</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">Energy</span>
+            <span class="meta-value" id="trackEnergy">—</span>
           </div>
         </div>
-        <div class="time-display">
-          <span id="currentTime">0:00</span>
-          <span id="remainingTime">-0:00</span>
+
+        <div class="playback-section">
+          <div class="progress-container">
+            <div class="progress-bar" id="progressBar">
+              <div class="progress-fill" id="progressFill"></div>
+            </div>
+          </div>
+          <div class="time-display">
+            <span id="currentTime">0:00</span>
+            <span id="remainingTime">-0:00</span>
+          </div>
         </div>
-      </div>
 
-      <div class="controls">
-        <button class="control-btn" id="skipBtn" title="Skip">⏭</button>
-        <button class="control-btn primary" id="playPauseBtn" title="Play/Pause">▶</button>
-        <button class="control-btn" id="stopBtn" title="Stop">⏹</button>
-      </div>
-
-      <div class="volume-container">
-        <span class="volume-icon" id="volumeIcon">🔊</span>
-        <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="80">
-      </div>
-
-      <div class="energy-display">
-        <div class="section-label">Track Energy</div>
-        <div class="energy-bar">
-          <div class="energy-fill" id="energyFill" style="width: 0%"></div>
-        </div>
-      </div>
-    </div>
-
-    <div class="up-next" id="upNext">
-      <div class="section-label">Up Next</div>
-      <div class="up-next-content">
-        <span class="up-next-icon">⏭</span>
-        <div class="up-next-info">
-          <div class="up-next-title" id="upNextTitle">—</div>
-          <div class="up-next-artist" id="upNextArtist">—</div>
-          <div class="up-next-reason" id="upNextReason"></div>
-        </div>
-        <div class="up-next-countdown" id="upNextCountdown">—</div>
-      </div>
-    </div>
-
-    <div class="camera-card">
-      <div class="camera-header">
-        <div class="section-label">Camera Mood Detection</div>
-        <div class="camera-controls">
-          <select class="camera-select" id="cameraSelect" disabled>
-            <option value="">Select camera...</option>
-          </select>
-          <button class="camera-toggle" id="cameraToggle">
-            <span>📷</span>
-            <span id="cameraToggleText">Enable Camera</span>
+        <div class="controls">
+          <button class="control-btn" id="skipBtn" title="Skip">⏭</button>
+          <button
+            class="control-btn primary"
+            id="playPauseBtn"
+            title="Play/Pause"
+          >
+            ▶
           </button>
+          <button class="control-btn" id="stopBtn" title="Stop">⏹</button>
         </div>
-      </div>
 
-      <div class="camera-preview-container">
-        <div class="camera-preview" id="cameraPreviewContainer">
-          <video id="cameraVideo" autoplay playsinline muted style="display: none;"></video>
-          <div class="camera-placeholder" id="cameraPlaceholder">
-            <div class="camera-placeholder-icon">📷</div>
-            <div>Camera disabled</div>
+        <div class="volume-container">
+          <span class="volume-icon" id="volumeIcon">🔊</span>
+          <input
+            type="range"
+            class="volume-slider"
+            id="volumeSlider"
+            min="0"
+            max="100"
+            value="80"
+          />
+        </div>
+
+        <div class="energy-display">
+          <div class="section-label">Track Energy</div>
+          <div class="energy-bar">
+            <div class="energy-fill" id="energyFill" style="width: 0%"></div>
           </div>
-          <div class="camera-preview-label">Live Feed</div>
-        </div>
-        <div class="camera-preview">
-          <canvas id="motionCanvas"></canvas>
-          <div class="camera-preview-label">Motion Detection</div>
         </div>
       </div>
 
-      <div class="motion-stats">
-        <div class="motion-stat">
-          <div class="motion-stat-value" id="motionRaw">0%</div>
-          <div class="motion-stat-label">Raw Motion</div>
-        </div>
-        <div class="motion-stat">
-          <div class="motion-stat-value" id="motionSmoothed">0%</div>
-          <div class="motion-stat-label">Smoothed</div>
-        </div>
-        <div class="motion-stat">
-          <div class="motion-stat-value" id="motionConfidence">0%</div>
-          <div class="motion-stat-label">Confidence</div>
+      <div class="up-next" id="upNext">
+        <div class="section-label">Up Next</div>
+        <div class="up-next-content">
+          <span class="up-next-icon">⏭</span>
+          <div class="up-next-info">
+            <div class="up-next-title" id="upNextTitle">—</div>
+            <div class="up-next-artist" id="upNextArtist">—</div>
+            <div class="up-next-reason" id="upNextReason"></div>
+          </div>
+          <div class="up-next-countdown" id="upNextCountdown">—</div>
         </div>
       </div>
 
-      <div class="motion-bar-container">
-        <div class="section-label" style="margin-bottom: 8px;">Motion Level</div>
-        <div class="motion-bar">
-          <div class="motion-bar-fill" id="motionBarFill"></div>
+      <div class="camera-card">
+        <div class="camera-header">
+          <div class="section-label">Camera Mood Detection</div>
+          <div class="camera-controls">
+            <select class="camera-select" id="cameraSelect" disabled>
+              <option value="">Select camera...</option>
+            </select>
+            <button class="camera-toggle" id="cameraToggle">
+              <span>📷</span>
+              <span id="cameraToggleText">Enable Camera</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="camera-preview-container">
+          <div class="camera-preview" id="cameraPreviewContainer">
+            <video
+              id="cameraVideo"
+              autoplay
+              playsinline
+              muted
+              style="display: none"
+            ></video>
+            <div class="camera-placeholder" id="cameraPlaceholder">
+              <div class="camera-placeholder-icon">📷</div>
+              <div>Camera disabled</div>
+            </div>
+            <div class="camera-preview-label">Live Feed</div>
+          </div>
+          <div class="camera-preview">
+            <canvas id="motionCanvas"></canvas>
+            <div class="camera-preview-label">Motion Detection</div>
+          </div>
+        </div>
+
+        <div class="motion-stats">
+          <div class="motion-stat">
+            <div class="motion-stat-value" id="motionRaw">0%</div>
+            <div class="motion-stat-label">Raw Motion</div>
+          </div>
+          <div class="motion-stat">
+            <div class="motion-stat-value" id="motionSmoothed">0%</div>
+            <div class="motion-stat-label">Smoothed</div>
+          </div>
+          <div class="motion-stat">
+            <div class="motion-stat-value" id="motionConfidence">0%</div>
+            <div class="motion-stat-label">Confidence</div>
+          </div>
+        </div>
+
+        <div class="motion-bar-container">
+          <div class="section-label" style="margin-bottom: 8px">
+            Motion Level
+          </div>
+          <div class="motion-bar">
+            <div class="motion-bar-fill" id="motionBarFill"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mood-card">
+        <div class="section-label">Detected Mood</div>
+        <div class="mood-level">
+          <span class="mood-icon" id="moodIcon">🎵</span>
+          <div class="mood-info">
+            <div class="mood-name" id="moodName">Unknown</div>
+            <div class="mood-trend" id="moodTrend">
+              Waiting for mood data...
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="log-card">
+        <div class="section-label">Activity Log</div>
+        <div class="log-container" id="logContainer">
+          <div class="log-entry placeholder">Click to start the party...</div>
         </div>
       </div>
     </div>
 
-    <div class="mood-card">
-      <div class="section-label">Detected Mood</div>
-      <div class="mood-level">
-        <span class="mood-icon" id="moodIcon">🎵</span>
-        <div class="mood-info">
-          <div class="mood-name" id="moodName">Unknown</div>
-          <div class="mood-trend" id="moodTrend">Waiting for mood data...</div>
-        </div>
-      </div>
-    </div>
+    <script type="module">
+      import { DJMixer } from './js/mixer.js';
+      import { Camera } from './js/camera.js';
+      import { MotionDetector } from './js/motion-detector.js';
+      import { MoodAnalyzer } from './js/mood-analyzer.js';
 
-    <div class="log-card">
-      <div class="section-label">Activity Log</div>
-      <div class="log-container" id="logContainer">
-        <div class="log-entry placeholder">Click to start the party...</div>
-      </div>
-    </div>
-  </div>
+      // State
+      const state = {
+        ws: null,
+        connected: false,
+        mixer: null,
+        currentTrack: null,
+        nextTrack: null,
+        nextTrackReason: null,
+        mood: null,
+        isPlaying: false,
+        started: false,
+        // Camera state
+        camera: null,
+        motionDetector: null,
+        moodAnalyzer: null,
+        cameraEnabled: false,
+        // Countdown state
+        countdownInterval: null,
+        transitionTime: null,
+      };
 
-  <script type="module">
-    import { DJMixer } from './js/mixer.js';
-    import { Camera } from './js/camera.js';
-    import { MotionDetector } from './js/motion-detector.js';
-    import { MoodAnalyzer } from './js/mood-analyzer.js';
+      const moodIcons = {
+        chill: '😌',
+        warming_up: '🔥',
+        energetic: '💃',
+        peak: '🚀',
+        cooling_down: '🌙',
+      };
 
-    // State
-    const state = {
-      ws: null,
-      connected: false,
-      mixer: null,
-      currentTrack: null,
-      nextTrack: null,
-      nextTrackReason: null,
-      mood: null,
-      isPlaying: false,
-      started: false,
-      // Camera state
-      camera: null,
-      motionDetector: null,
-      moodAnalyzer: null,
-      cameraEnabled: false,
-      // Countdown state
-      countdownInterval: null,
-      transitionTime: null,
-    };
+      // Logging
+      function log(message) {
+        const container = document.getElementById('logContainer');
+        const placeholder = container.querySelector('.placeholder');
+        if (placeholder) placeholder.remove();
 
-    const moodIcons = {
-      chill: '😌',
-      warming_up: '🔥',
-      energetic: '💃',
-      peak: '🚀',
-      cooling_down: '🌙',
-    };
+        const entry = document.createElement('div');
+        entry.className = 'log-entry';
 
-    // Logging
-    function log(message) {
-      const container = document.getElementById('logContainer');
-      const placeholder = container.querySelector('.placeholder');
-      if (placeholder) placeholder.remove();
+        const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+        entry.innerHTML = `<span class="log-time">${time}</span>${message}`;
 
-      const entry = document.createElement('div');
-      entry.className = 'log-entry';
-      
-      const time = new Date().toLocaleTimeString('en-US', { hour12: false });
-      entry.innerHTML = `<span class="log-time">${time}</span>${message}`;
-      
-      container.insertBefore(entry, container.firstChild);
+        container.insertBefore(entry, container.firstChild);
 
-      while (container.children.length > 50) {
-        container.removeChild(container.lastChild);
+        while (container.children.length > 50) {
+          container.removeChild(container.lastChild);
+        }
       }
-    }
 
-    // Format time as m:ss
-    function formatTime(seconds) {
-      const mins = Math.floor(seconds / 60);
-      const secs = Math.floor(seconds % 60);
-      return `${mins}:${secs.toString().padStart(2, '0')}`;
-    }
-
-    // UI Updates
-    function updateStatus(status, text) {
-      const dot = document.getElementById('statusDot');
-      const statusText = document.getElementById('statusText');
-      
-      dot.className = 'status-dot ' + status;
-      statusText.textContent = text;
-    }
-
-    function updateTrack(track) {
-      if (!track) return;
-      
-      state.currentTrack = track;
-      
-      document.getElementById('trackTitle').textContent = track.title;
-      document.getElementById('trackArtist').textContent = track.artist;
-      document.getElementById('trackBpm').textContent = Math.round(track.bpm);
-      document.getElementById('trackKey').textContent = track.key;
-      document.getElementById('trackEnergy').textContent = (track.energy * 100).toFixed(0) + '%';
-      document.getElementById('energyFill').style.width = (track.energy * 100) + '%';
-    }
-
-    function updateUpNext(track, reason = null) {
-      const upNextEl = document.getElementById('upNext');
-      if (!track) {
-        upNextEl.classList.remove('visible');
-        state.nextTrack = null;
-        state.nextTrackReason = null;
-        stopCountdown();
-        return;
+      // Format time as m:ss
+      function formatTime(seconds) {
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
       }
-      
-      state.nextTrack = track;
-      state.nextTrackReason = reason;
-      document.getElementById('upNextTitle').textContent = track.title;
-      document.getElementById('upNextArtist').textContent = track.artist;
-      document.getElementById('upNextReason').textContent = reason || '';
-      upNextEl.classList.add('visible');
-    }
 
-    function startCountdown(seconds) {
-      stopCountdown();
-      state.transitionTime = Date.now() + (seconds * 1000);
-      
-      const updateCountdown = () => {
-        const remaining = Math.max(0, Math.ceil((state.transitionTime - Date.now()) / 1000));
-        document.getElementById('upNextCountdown').textContent = remaining > 0 ? `${remaining}s` : '—';
-        
-        if (remaining <= 0) {
+      // UI Updates
+      function updateStatus(status, text) {
+        const dot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+
+        dot.className = 'status-dot ' + status;
+        statusText.textContent = text;
+      }
+
+      function updateTrack(track) {
+        if (!track) return;
+
+        state.currentTrack = track;
+
+        document.getElementById('trackTitle').textContent = track.title;
+        document.getElementById('trackArtist').textContent = track.artist;
+        document.getElementById('trackBpm').textContent = Math.round(track.bpm);
+        document.getElementById('trackKey').textContent = track.key;
+        document.getElementById('trackEnergy').textContent =
+          (track.energy * 100).toFixed(0) + '%';
+        document.getElementById('energyFill').style.width =
+          track.energy * 100 + '%';
+      }
+
+      function updateUpNext(track, reason = null) {
+        const upNextEl = document.getElementById('upNext');
+        if (!track) {
+          upNextEl.classList.remove('visible');
+          state.nextTrack = null;
+          state.nextTrackReason = null;
           stopCountdown();
+          return;
         }
-      };
-      
-      updateCountdown();
-      state.countdownInterval = setInterval(updateCountdown, 500);
-    }
 
-    function stopCountdown() {
-      if (state.countdownInterval) {
-        clearInterval(state.countdownInterval);
-        state.countdownInterval = null;
+        state.nextTrack = track;
+        state.nextTrackReason = reason;
+        document.getElementById('upNextTitle').textContent = track.title;
+        document.getElementById('upNextArtist').textContent = track.artist;
+        document.getElementById('upNextReason').textContent = reason || '';
+        upNextEl.classList.add('visible');
       }
-      state.transitionTime = null;
-      document.getElementById('upNextCountdown').textContent = '—';
-    }
 
-    function updatePlaybackTime(currentTime, duration, remaining) {
-      document.getElementById('currentTime').textContent = formatTime(currentTime);
-      document.getElementById('remainingTime').textContent = '-' + formatTime(remaining);
-      
-      const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
-      document.getElementById('progressFill').style.width = progress + '%';
-    }
+      function startCountdown(seconds) {
+        stopCountdown();
+        state.transitionTime = Date.now() + seconds * 1000;
 
-    function updatePlayPauseButton(isPlaying) {
-      const btn = document.getElementById('playPauseBtn');
-      btn.textContent = isPlaying ? '⏸' : '▶';
-      state.isPlaying = isPlaying;
-      
-      if (isPlaying) {
-        updateStatus('playing', 'Playing');
-      } else if (state.connected) {
-        updateStatus('connected', 'Paused');
+        const updateCountdown = () => {
+          const remaining = Math.max(
+            0,
+            Math.ceil((state.transitionTime - Date.now()) / 1000)
+          );
+          document.getElementById('upNextCountdown').textContent =
+            remaining > 0 ? `${remaining}s` : '—';
+
+          if (remaining <= 0) {
+            stopCountdown();
+          }
+        };
+
+        updateCountdown();
+        state.countdownInterval = setInterval(updateCountdown, 500);
       }
-    }
 
-    function updateMood(mood) {
-      if (!mood) return;
-      
-      const previousLevel = state.mood?.level;
-      state.mood = mood;
-      
-      document.getElementById('moodIcon').textContent = moodIcons[mood.level] || '🎵';
-      document.getElementById('moodName').textContent = mood.level.replace('_', ' ');
-      
-      const trendText = mood.trend === 'rising' ? '↑ Rising' : 
-                        mood.trend === 'falling' ? '↓ Falling' : '→ Stable';
-      document.getElementById('moodTrend').textContent = 
-        `Energy: ${(mood.energy * 100).toFixed(0)}% ${trendText}`;
-
-      // Trigger mood change animation if level changed
-      if (previousLevel && previousLevel !== mood.level) {
-        const moodCard = document.querySelector('.mood-card');
-        moodCard.classList.remove('mood-changed');
-        // Force reflow to restart animation
-        void moodCard.offsetWidth;
-        moodCard.classList.add('mood-changed');
-        log(`🌡️ Mood changed: ${previousLevel.replace('_', ' ')} → ${mood.level.replace('_', ' ')}`);
-      }
-    }
-
-    // Update motion stats display
-    function updateMotionStats(mood) {
-      document.getElementById('motionRaw').textContent = 
-        `${mood.motionRaw?.toFixed(0) ?? 0}%`;
-      document.getElementById('motionSmoothed').textContent = 
-        `${mood.motionSmoothed?.toFixed(0) ?? 0}%`;
-      document.getElementById('motionConfidence').textContent = 
-        `${((mood.confidence ?? 0) * 100).toFixed(0)}%`;
-      document.getElementById('motionBarFill').style.width = 
-        `${mood.motionSmoothed ?? 0}%`;
-    }
-
-    // Initialize camera system
-    async function initCamera() {
-      const videoElement = document.getElementById('cameraVideo');
-      const motionCanvas = document.getElementById('motionCanvas');
-      
-      // Create camera
-      state.camera = new Camera();
-      await state.camera.init(videoElement);
-
-      // Create motion detector with debug canvas
-      state.motionDetector = new MotionDetector({
-        threshold: 25,
-        backgroundAlpha: 0.05,
-      });
-      state.motionDetector.enableDebug(motionCanvas);
-
-      // Create mood analyzer
-      state.moodAnalyzer = new MoodAnalyzer({
-        smoothingWindow: 5000,
-        updateInterval: 1000,
-      });
-
-      // Wire up callbacks
-      state.camera.onFrame = (frame) => {
-        const motion = state.motionDetector.processFrame(frame);
-        state.moodAnalyzer.processMotion(motion);
-      };
-
-      state.camera.onError = (error) => {
-        log(`📷 Camera error: ${error.message}`);
-        setCameraEnabled(false);
-      };
-
-      state.camera.onDevicesChanged = (devices) => {
-        updateCameraDeviceList(devices);
-      };
-
-      state.moodAnalyzer.onMoodUpdate = (mood) => {
-        // Update local display
-        updateMood(mood);
-        updateMotionStats(mood);
-
-        // Send to server
-        if (state.connected) {
-          sendMessage({
-            type: 'mood_update',
-            mood: state.moodAnalyzer.getMoodForServer(),
-          });
+      function stopCountdown() {
+        if (state.countdownInterval) {
+          clearInterval(state.countdownInterval);
+          state.countdownInterval = null;
         }
-      };
-
-      // Set up camera controls
-      setupCameraControls();
-
-      console.log('[App] Camera system initialized');
-    }
-
-    // Update camera device dropdown
-    function updateCameraDeviceList(devices) {
-      const select = document.getElementById('cameraSelect');
-      const currentValue = select.value;
-      
-      select.innerHTML = '<option value="">Select camera...</option>';
-      
-      devices.forEach((device, index) => {
-        const option = document.createElement('option');
-        option.value = device.deviceId;
-        option.textContent = device.label || `Camera ${index + 1}`;
-        select.appendChild(option);
-      });
-
-      // Restore selection if still available
-      if (currentValue && devices.find(d => d.deviceId === currentValue)) {
-        select.value = currentValue;
+        state.transitionTime = null;
+        document.getElementById('upNextCountdown').textContent = '—';
       }
 
-      select.disabled = devices.length === 0;
-    }
+      function updatePlaybackTime(currentTime, duration, remaining) {
+        document.getElementById('currentTime').textContent =
+          formatTime(currentTime);
+        document.getElementById('remainingTime').textContent =
+          '-' + formatTime(remaining);
 
-    // Set camera enabled state
-    async function setCameraEnabled(enabled) {
-      const toggle = document.getElementById('cameraToggle');
-      const toggleText = document.getElementById('cameraToggleText');
-      const video = document.getElementById('cameraVideo');
-      const placeholder = document.getElementById('cameraPlaceholder');
+        const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+        document.getElementById('progressFill').style.width = progress + '%';
+      }
 
-      if (enabled) {
-        const deviceId = document.getElementById('cameraSelect').value || null;
-        const started = await state.camera.start(deviceId);
-        
-        if (started) {
-          state.cameraEnabled = true;
-          state.moodAnalyzer.start();
-          
-          toggle.classList.add('active');
-          toggleText.textContent = 'Disable Camera';
-          video.style.display = 'block';
-          placeholder.style.display = 'none';
-          
-          log('📷 Camera enabled - detecting motion');
+      function updatePlayPauseButton(isPlaying) {
+        const btn = document.getElementById('playPauseBtn');
+        btn.textContent = isPlaying ? '⏸' : '▶';
+        state.isPlaying = isPlaying;
+
+        if (isPlaying) {
+          updateStatus('playing', 'Playing');
+        } else if (state.connected) {
+          updateStatus('connected', 'Paused');
         }
-      } else {
-        await state.camera.stop();
-        state.moodAnalyzer.stop();
-        state.motionDetector.reset();
-        state.cameraEnabled = false;
-        
-        toggle.classList.remove('active');
-        toggleText.textContent = 'Enable Camera';
-        video.style.display = 'none';
-        placeholder.style.display = 'flex';
-        
-        // Reset motion display
-        updateMotionStats({ motionRaw: 0, motionSmoothed: 0, confidence: 0 });
-        
-        log('📷 Camera disabled');
       }
-    }
 
-    // Set up camera control event handlers
-    function setupCameraControls() {
-      const toggle = document.getElementById('cameraToggle');
-      const select = document.getElementById('cameraSelect');
+      function updateMood(mood) {
+        if (!mood) return;
 
-      toggle.addEventListener('click', () => {
-        setCameraEnabled(!state.cameraEnabled);
-      });
+        const previousLevel = state.mood?.level;
+        state.mood = mood;
 
-      select.addEventListener('change', async (e) => {
-        if (state.cameraEnabled && e.target.value) {
-          await state.camera.switchDevice(e.target.value);
+        document.getElementById('moodIcon').textContent =
+          moodIcons[mood.level] || '🎵';
+        document.getElementById('moodName').textContent = mood.level.replace(
+          '_',
+          ' '
+        );
+
+        const trendText =
+          mood.trend === 'rising'
+            ? '↑ Rising'
+            : mood.trend === 'falling'
+              ? '↓ Falling'
+              : '→ Stable';
+        document.getElementById('moodTrend').textContent =
+          `Energy: ${(mood.energy * 100).toFixed(0)}% ${trendText}`;
+
+        // Trigger mood change animation if level changed
+        if (previousLevel && previousLevel !== mood.level) {
+          const moodCard = document.querySelector('.mood-card');
+          moodCard.classList.remove('mood-changed');
+          // Force reflow to restart animation
+          void moodCard.offsetWidth;
+          moodCard.classList.add('mood-changed');
+          log(
+            `🌡️ Mood changed: ${previousLevel.replace('_', ' ')} → ${mood.level.replace('_', ' ')}`
+          );
+        }
+      }
+
+      // Update motion stats display
+      function updateMotionStats(mood) {
+        document.getElementById('motionRaw').textContent =
+          `${mood.motionRaw?.toFixed(0) ?? 0}%`;
+        document.getElementById('motionSmoothed').textContent =
+          `${mood.motionSmoothed?.toFixed(0) ?? 0}%`;
+        document.getElementById('motionConfidence').textContent =
+          `${((mood.confidence ?? 0) * 100).toFixed(0)}%`;
+        document.getElementById('motionBarFill').style.width =
+          `${mood.motionSmoothed ?? 0}%`;
+      }
+
+      // Initialize camera system
+      async function initCamera() {
+        const videoElement = document.getElementById('cameraVideo');
+        const motionCanvas = document.getElementById('motionCanvas');
+
+        // Create camera
+        state.camera = new Camera();
+        await state.camera.init(videoElement);
+
+        // Create motion detector with debug canvas
+        state.motionDetector = new MotionDetector({
+          threshold: 25,
+          backgroundAlpha: 0.05,
+        });
+        state.motionDetector.enableDebug(motionCanvas);
+
+        // Create mood analyzer
+        state.moodAnalyzer = new MoodAnalyzer({
+          smoothingWindow: 5000,
+          updateInterval: 1000,
+        });
+
+        // Wire up callbacks
+        state.camera.onFrame = (frame) => {
+          const motion = state.motionDetector.processFrame(frame);
+          state.moodAnalyzer.processMotion(motion);
+        };
+
+        state.camera.onError = (error) => {
+          log(`📷 Camera error: ${error.message}`);
+          setCameraEnabled(false);
+        };
+
+        state.camera.onDevicesChanged = (devices) => {
+          updateCameraDeviceList(devices);
+        };
+
+        state.moodAnalyzer.onMoodUpdate = (mood) => {
+          // Update local display
+          updateMood(mood);
+          updateMotionStats(mood);
+
+          // Send to server
+          if (state.connected) {
+            sendMessage({
+              type: 'mood_update',
+              mood: state.moodAnalyzer.getMoodForServer(),
+            });
+          }
+        };
+
+        // Set up camera controls
+        setupCameraControls();
+
+        console.log('[App] Camera system initialized');
+      }
+
+      // Update camera device dropdown
+      function updateCameraDeviceList(devices) {
+        const select = document.getElementById('cameraSelect');
+        const currentValue = select.value;
+
+        select.innerHTML = '<option value="">Select camera...</option>';
+
+        devices.forEach((device, index) => {
+          const option = document.createElement('option');
+          option.value = device.deviceId;
+          option.textContent = device.label || `Camera ${index + 1}`;
+          select.appendChild(option);
+        });
+
+        // Restore selection if still available
+        if (currentValue && devices.find((d) => d.deviceId === currentValue)) {
+          select.value = currentValue;
+        }
+
+        select.disabled = devices.length === 0;
+      }
+
+      // Set camera enabled state
+      async function setCameraEnabled(enabled) {
+        const toggle = document.getElementById('cameraToggle');
+        const toggleText = document.getElementById('cameraToggleText');
+        const video = document.getElementById('cameraVideo');
+        const placeholder = document.getElementById('cameraPlaceholder');
+
+        if (enabled) {
+          const deviceId =
+            document.getElementById('cameraSelect').value || null;
+          const started = await state.camera.start(deviceId);
+
+          if (started) {
+            state.cameraEnabled = true;
+            state.moodAnalyzer.start();
+
+            toggle.classList.add('active');
+            toggleText.textContent = 'Disable Camera';
+            video.style.display = 'block';
+            placeholder.style.display = 'none';
+
+            log('📷 Camera enabled - detecting motion');
+          }
+        } else {
+          await state.camera.stop();
+          state.moodAnalyzer.stop();
           state.motionDetector.reset();
-          log(`📷 Switched to: ${e.target.selectedOptions[0].textContent}`);
+          state.cameraEnabled = false;
+
+          toggle.classList.remove('active');
+          toggleText.textContent = 'Enable Camera';
+          video.style.display = 'none';
+          placeholder.style.display = 'flex';
+
+          // Reset motion display
+          updateMotionStats({ motionRaw: 0, motionSmoothed: 0, confidence: 0 });
+
+          log('📷 Camera disabled');
         }
-      });
-    }
+      }
 
-    // Initialize mixer
-    function initMixer() {
-      state.mixer = new DJMixer();
-      
-      // Set initial volume
-      const volumeSlider = document.getElementById('volumeSlider');
-      state.mixer.setMasterVolume(volumeSlider.value / 100);
+      // Set up camera control event handlers
+      function setupCameraControls() {
+        const toggle = document.getElementById('cameraToggle');
+        const select = document.getElementById('cameraSelect');
 
-      // Mixer callbacks
-      state.mixer.onTimeUpdate = (info) => {
-        updatePlaybackTime(info.currentTime, info.duration, info.remaining);
-      };
-
-      state.mixer.onTrackEnding = (info) => {
-        log(`⏰ Track ending in ${Math.round(info.remainingSeconds)}s, requesting next...`);
-        sendMessage({
-          type: 'track_ending',
-          trackId: info.trackId,
-          remainingSeconds: info.remainingSeconds,
+        toggle.addEventListener('click', () => {
+          setCameraEnabled(!state.cameraEnabled);
         });
-      };
 
-      state.mixer.onTrackStarted = (info) => {
-        updatePlayPauseButton(true);
-        sendMessage({
-          type: 'track_started',
-          trackId: info.trackId,
-          timestamp: Date.now(),
+        select.addEventListener('change', async (e) => {
+          if (state.cameraEnabled && e.target.value) {
+            await state.camera.switchDevice(e.target.value);
+            state.motionDetector.reset();
+            log(`📷 Switched to: ${e.target.selectedOptions[0].textContent}`);
+          }
         });
-      };
+      }
 
-      state.mixer.onTrackEnded = (info) => {
-        sendMessage({
-          type: 'track_ended',
-          trackId: info.trackId,
-        });
-      };
+      // Initialize mixer
+      function initMixer() {
+        state.mixer = new DJMixer();
 
-      state.mixer.onError = (error) => {
-        log(`❌ Audio error: ${error.message}`);
-        // Auto-skip on load failure
-        if (error.type === 'load_error' || error.message?.includes('load')) {
-          log(`⏭ Auto-skipping due to load error...`);
+        // Set initial volume
+        const volumeSlider = document.getElementById('volumeSlider');
+        state.mixer.setMasterVolume(volumeSlider.value / 100);
+
+        // Mixer callbacks
+        state.mixer.onTimeUpdate = (info) => {
+          updatePlaybackTime(info.currentTime, info.duration, info.remaining);
+        };
+
+        state.mixer.onTrackEnding = (info) => {
+          log(
+            `⏰ Track ending in ${Math.round(info.remainingSeconds)}s, requesting next...`
+          );
           sendMessage({
             type: 'track_ending',
-            trackId: state.currentTrack?.id,
-            remainingSeconds: 0,
+            trackId: info.trackId,
+            remainingSeconds: info.remainingSeconds,
           });
-        }
-      };
+        };
 
-      console.log('[App] Mixer initialized');
-    }
-
-    // WebSocket
-    function sendMessage(message) {
-      if (state.ws && state.ws.readyState === WebSocket.OPEN) {
-        state.ws.send(JSON.stringify(message));
-      }
-    }
-
-    function connect() {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//${window.location.host}`;
-      
-      log('Connecting to server...');
-      updateStatus('connecting', 'Connecting...');
-
-      state.ws = new WebSocket(wsUrl);
-
-      state.ws.onopen = () => {
-        state.connected = true;
-        updateStatus('connected', 'Connected');
-        log('Connected to AI DJ server');
-        
-        // Send ready message
-        sendMessage({ type: 'client_ready' });
-      };
-
-      state.ws.onmessage = (event) => {
-        try {
-          const message = JSON.parse(event.data);
-          handleMessage(message);
-        } catch (e) {
-          console.error('Failed to parse message:', e);
-        }
-      };
-
-      state.ws.onclose = () => {
-        state.connected = false;
-        updateStatus('connecting', 'Disconnected');
-        log('Disconnected from server');
-        
-        // Auto-reconnect after 3 seconds
-        setTimeout(connect, 3000);
-      };
-
-      state.ws.onerror = (error) => {
-        log('WebSocket error occurred');
-        console.error('WebSocket error:', error);
-      };
-    }
-
-    async function handleMessage(message) {
-      switch (message.type) {
-        case 'play_track':
-          const track = message.track;
-          
-          if (message.queuePosition === 'immediate') {
-            // Play immediately on active deck
-            log(`🎵 Playing: "${track.title}" by ${track.artist}`);
-            updateTrack(track);
-            updateUpNext(null); // Clear up next
-            await state.mixer.playImmediate(track);
-            updatePlayPauseButton(true);
-          } else {
-            // Queue for next
-            log(`⏭ Queued: "${track.title}" by ${track.artist}`);
-            updateUpNext(track, message.reason);
-            await state.mixer.queueNext(track);
-            // Start countdown (crossfade is ~8s, trigger is ~15s before end)
-            startCountdown(15);
-          }
-          
-          if (message.reason) {
-            log(`   └ ${message.reason}`);
-          }
-          break;
-
-        case 'status':
-          if (message.currentTrack) {
-            updateTrack(message.currentTrack);
-          }
-          if (message.currentMood) {
-            updateMood(message.currentMood);
-          }
-          break;
-
-        case 'mood_broadcast':
-          // Update mood from server broadcast (when not using local camera)
-          if (!state.cameraEnabled) {
-            updateMood(message.mood);
-          }
-          break;
-
-        case 'pause':
-          state.mixer.pause();
-          updatePlayPauseButton(false);
-          log('⏸ Paused');
-          break;
-
-        case 'resume':
-          state.mixer.resume();
+        state.mixer.onTrackStarted = (info) => {
           updatePlayPauseButton(true);
-          log('▶ Resumed');
-          break;
+          sendMessage({
+            type: 'track_started',
+            trackId: info.trackId,
+            timestamp: Date.now(),
+          });
+        };
 
-        case 'stop':
+        state.mixer.onTrackEnded = (info) => {
+          sendMessage({
+            type: 'track_ended',
+            trackId: info.trackId,
+          });
+        };
+
+        state.mixer.onError = (error) => {
+          log(`❌ Audio error: ${error.message}`);
+          // Auto-skip on load failure
+          if (error.type === 'load_error' || error.message?.includes('load')) {
+            log(`⏭ Auto-skipping due to load error...`);
+            sendMessage({
+              type: 'track_ending',
+              trackId: state.currentTrack?.id,
+              remainingSeconds: 0,
+            });
+          }
+        };
+
+        console.log('[App] Mixer initialized');
+      }
+
+      // WebSocket
+      function sendMessage(message) {
+        if (state.ws && state.ws.readyState === WebSocket.OPEN) {
+          state.ws.send(JSON.stringify(message));
+        }
+      }
+
+      function connect() {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}`;
+
+        log('Connecting to server...');
+        updateStatus('connecting', 'Connecting...');
+
+        state.ws = new WebSocket(wsUrl);
+
+        state.ws.onopen = () => {
+          state.connected = true;
+          updateStatus('connected', 'Connected');
+          log('Connected to AI DJ server');
+
+          // Send ready message
+          sendMessage({ type: 'client_ready' });
+        };
+
+        state.ws.onmessage = (event) => {
+          try {
+            const message = JSON.parse(event.data);
+            handleMessage(message);
+          } catch (e) {
+            console.error('Failed to parse message:', e);
+          }
+        };
+
+        state.ws.onclose = () => {
+          state.connected = false;
+          updateStatus('connecting', 'Disconnected');
+          log('Disconnected from server');
+
+          // Auto-reconnect after 3 seconds
+          setTimeout(connect, 3000);
+        };
+
+        state.ws.onerror = (error) => {
+          log('WebSocket error occurred');
+          console.error('WebSocket error:', error);
+        };
+      }
+
+      async function handleMessage(message) {
+        switch (message.type) {
+          case 'play_track':
+            const track = message.track;
+
+            if (message.queuePosition === 'immediate') {
+              // Play immediately on active deck
+              log(`🎵 Playing: "${track.title}" by ${track.artist}`);
+              updateTrack(track);
+              updateUpNext(null); // Clear up next
+              await state.mixer.playImmediate(track);
+              updatePlayPauseButton(true);
+            } else {
+              // Queue for next
+              log(`⏭ Queued: "${track.title}" by ${track.artist}`);
+              updateUpNext(track, message.reason);
+              await state.mixer.queueNext(track);
+              // Start countdown (crossfade is ~8s, trigger is ~15s before end)
+              startCountdown(15);
+            }
+
+            if (message.reason) {
+              log(`   └ ${message.reason}`);
+            }
+            break;
+
+          case 'status':
+            if (message.currentTrack) {
+              updateTrack(message.currentTrack);
+            }
+            if (message.currentMood) {
+              updateMood(message.currentMood);
+            }
+            break;
+
+          case 'mood_broadcast':
+            // Update mood from server broadcast (when not using local camera)
+            if (!state.cameraEnabled) {
+              updateMood(message.mood);
+            }
+            break;
+
+          case 'pause':
+            state.mixer.pause();
+            updatePlayPauseButton(false);
+            log('⏸ Paused');
+            break;
+
+          case 'resume':
+            state.mixer.resume();
+            updatePlayPauseButton(true);
+            log('▶ Resumed');
+            break;
+
+          case 'stop':
+            state.mixer.stop();
+            updatePlayPauseButton(false);
+            log('⏹ Stopped');
+            break;
+
+          case 'early_transition':
+            // Handle reactive mode early transition
+            const earlyTrack = message.track;
+            log(
+              `⚡ EARLY TRANSITION (score: ${message.score?.toFixed(0) ?? '?'})`
+            );
+            log(`   └ ${message.reason}`);
+            log(
+              `   └ New track: "${earlyTrack.title}" by ${earlyTrack.artist}`
+            );
+
+            // Queue the track and immediately start crossfade
+            updateUpNext(earlyTrack, `⚡ ${message.reason}`);
+            await state.mixer.queueNext(earlyTrack);
+
+            // Trigger crossfade immediately
+            state.mixer.startCrossfade();
+
+            // Update current track display after a short delay (to let crossfade start)
+            setTimeout(() => {
+              updateTrack(earlyTrack);
+              updateUpNext(null);
+            }, state.mixer.crossfadeDuration * 1000);
+            break;
+
+          case 'error':
+            log(`❌ Error: ${message.error}`);
+            break;
+
+          default:
+            console.log('Unknown message:', message);
+        }
+      }
+
+      // Control handlers
+      function setupControls() {
+        // Play/Pause button
+        document
+          .getElementById('playPauseBtn')
+          .addEventListener('click', () => {
+            if (state.isPlaying) {
+              state.mixer.pause();
+              updatePlayPauseButton(false);
+              log('⏸ Paused');
+            } else {
+              state.mixer.resume();
+              updatePlayPauseButton(true);
+              log('▶ Resumed');
+            }
+          });
+
+        // Skip button
+        document
+          .getElementById('skipBtn')
+          .addEventListener('click', async () => {
+            if (state.nextTrack) {
+              log(`⏭ Skipping to: "${state.nextTrack.title}"`);
+              updateTrack(state.nextTrack);
+              await state.mixer.skipToNext();
+              updateUpNext(null);
+            } else {
+              log('⏭ No track queued, requesting next...');
+              sendMessage({
+                type: 'track_ending',
+                trackId: state.currentTrack?.id,
+                remainingSeconds: 0,
+              });
+            }
+          });
+
+        // Stop button
+        document.getElementById('stopBtn').addEventListener('click', () => {
           state.mixer.stop();
           updatePlayPauseButton(false);
+          updatePlaybackTime(0, 0, 0);
           log('⏹ Stopped');
-          break;
+        });
 
-        case 'error':
-          log(`❌ Error: ${message.error}`);
-          break;
+        // Volume slider
+        const volumeSlider = document.getElementById('volumeSlider');
+        const volumeIcon = document.getElementById('volumeIcon');
 
-        default:
-          console.log('Unknown message:', message);
+        volumeSlider.addEventListener('input', (e) => {
+          const volume = e.target.value / 100;
+          state.mixer.setMasterVolume(volume);
+
+          // Update icon
+          if (volume === 0) {
+            volumeIcon.textContent = '🔇';
+          } else if (volume < 0.5) {
+            volumeIcon.textContent = '🔉';
+          } else {
+            volumeIcon.textContent = '🔊';
+          }
+        });
+
+        // Volume icon click to mute/unmute
+        let lastVolume = 80;
+        volumeIcon.addEventListener('click', () => {
+          if (volumeSlider.value > 0) {
+            lastVolume = volumeSlider.value;
+            volumeSlider.value = 0;
+            state.mixer.setMasterVolume(0);
+            volumeIcon.textContent = '🔇';
+          } else {
+            volumeSlider.value = lastVolume;
+            state.mixer.setMasterVolume(lastVolume / 100);
+            volumeIcon.textContent = lastVolume < 50 ? '🔉' : '🔊';
+          }
+        });
       }
-    }
 
-    // Control handlers
-    function setupControls() {
-      // Play/Pause button
-      document.getElementById('playPauseBtn').addEventListener('click', () => {
-        if (state.isPlaying) {
-          state.mixer.pause();
-          updatePlayPauseButton(false);
-          log('⏸ Paused');
-        } else {
-          state.mixer.resume();
-          updatePlayPauseButton(true);
-          log('▶ Resumed');
-        }
-      });
+      // Start the app
+      async function start() {
+        if (state.started) return;
+        state.started = true;
 
-      // Skip button
-      document.getElementById('skipBtn').addEventListener('click', async () => {
-        if (state.nextTrack) {
-          log(`⏭ Skipping to: "${state.nextTrack.title}"`);
-          updateTrack(state.nextTrack);
-          await state.mixer.skipToNext();
-          updateUpNext(null);
-        } else {
-          log('⏭ No track queued, requesting next...');
-          sendMessage({
-            type: 'track_ending',
-            trackId: state.currentTrack?.id,
-            remainingSeconds: 0,
-          });
-        }
-      });
+        // Hide overlay
+        document.getElementById('startOverlay').classList.add('hidden');
 
-      // Stop button
-      document.getElementById('stopBtn').addEventListener('click', () => {
-        state.mixer.stop();
-        updatePlayPauseButton(false);
-        updatePlaybackTime(0, 0, 0);
-        log('⏹ Stopped');
-      });
+        // Initialize
+        initMixer();
+        setupControls();
+        await initCamera();
+        connect();
 
-      // Volume slider
-      const volumeSlider = document.getElementById('volumeSlider');
-      const volumeIcon = document.getElementById('volumeIcon');
-      
-      volumeSlider.addEventListener('input', (e) => {
-        const volume = e.target.value / 100;
-        state.mixer.setMasterVolume(volume);
-        
-        // Update icon
-        if (volume === 0) {
-          volumeIcon.textContent = '🔇';
-        } else if (volume < 0.5) {
-          volumeIcon.textContent = '🔉';
-        } else {
-          volumeIcon.textContent = '🔊';
-        }
-      });
-
-      // Volume icon click to mute/unmute
-      let lastVolume = 80;
-      volumeIcon.addEventListener('click', () => {
-        if (volumeSlider.value > 0) {
-          lastVolume = volumeSlider.value;
-          volumeSlider.value = 0;
-          state.mixer.setMasterVolume(0);
-          volumeIcon.textContent = '🔇';
-        } else {
-          volumeSlider.value = lastVolume;
-          state.mixer.setMasterVolume(lastVolume / 100);
-          volumeIcon.textContent = lastVolume < 50 ? '🔉' : '🔊';
-        }
-      });
-    }
-
-    // Start the app
-    async function start() {
-      if (state.started) return;
-      state.started = true;
-
-      // Hide overlay
-      document.getElementById('startOverlay').classList.add('hidden');
-      
-      // Initialize
-      initMixer();
-      setupControls();
-      await initCamera();
-      connect();
-      
-      log('🎧 AI DJ started');
-    }
-
-    // Wait for user interaction to start (required for Web Audio)
-    document.getElementById('startOverlay').addEventListener('click', start);
-    
-    // Also start on any keypress
-    document.addEventListener('keydown', (e) => {
-      if (!state.started && e.key !== 'Escape') {
-        start();
+        log('🎧 AI DJ started');
       }
-    });
-  </script>
-</body>
+
+      // Wait for user interaction to start (required for Web Audio)
+      document.getElementById('startOverlay').addEventListener('click', start);
+
+      // Also start on any keypress
+      document.addEventListener('keydown', (e) => {
+        if (!state.started && e.key !== 'Escape') {
+          start();
+        }
+      });
+    </script>
+  </body>
 </html>

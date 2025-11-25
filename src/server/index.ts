@@ -4,11 +4,7 @@
  * Exports server functionality.
  */
 
-export {
-  DJServer,
-  ServerOptions,
-  ServerEvents,
-} from './server.js';
+export { DJServer, ServerOptions, ServerEvents } from './server.js';
 
 export {
   ConnectionManager,
@@ -33,7 +29,7 @@ export {
   StopMessage,
   ErrorMessage,
   MoodBroadcastMessage,
+  EarlyTransitionMessage,
   isClientMessage,
   parseClientMessage,
 } from './types.js';
-
