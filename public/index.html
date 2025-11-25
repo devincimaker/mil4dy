@@ -111,6 +111,12 @@
       animation: pulse 1s ease-in-out infinite;
     }
 
+    .status-dot.playing {
+      background: var(--accent-primary);
+      box-shadow: 0 0 12px var(--accent-primary);
+      animation: pulse 1s ease-in-out infinite;
+    }
+
     @keyframes pulse {
       0%, 100% { opacity: 1; }
       50% { opacity: 0.5; }
@@ -170,6 +176,7 @@
       display: flex;
       gap: 20px;
       flex-wrap: wrap;
+      margin-bottom: 24px;
     }
 
     .meta-item {
@@ -187,6 +194,125 @@
     .meta-value {
       font-weight: 500;
       color: var(--text-primary);
+    }
+
+    /* Playback progress */
+    .playback-section {
+      margin-top: 24px;
+      padding-top: 24px;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .progress-container {
+      margin-bottom: 12px;
+    }
+
+    .progress-bar {
+      height: 6px;
+      background: var(--bg-tertiary);
+      border-radius: 3px;
+      overflow: hidden;
+      cursor: pointer;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+      border-radius: 3px;
+      transition: width 0.25s linear;
+      width: 0%;
+    }
+
+    .time-display {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Controls */
+    .controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      margin-top: 24px;
+    }
+
+    .control-btn {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      border: none;
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      font-size: 1.5rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .control-btn:hover {
+      background: var(--accent-primary);
+      transform: scale(1.05);
+    }
+
+    .control-btn:active {
+      transform: scale(0.95);
+    }
+
+    .control-btn.primary {
+      width: 72px;
+      height: 72px;
+      font-size: 2rem;
+      background: linear-gradient(135deg, var(--accent-primary), #ff6688);
+    }
+
+    .control-btn.primary:hover {
+      box-shadow: 0 0 24px var(--accent-glow);
+    }
+
+    /* Volume control */
+    .volume-container {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 20px;
+      padding-top: 20px;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .volume-icon {
+      font-size: 1.25rem;
+      cursor: pointer;
+    }
+
+    .volume-slider {
+      flex: 1;
+      height: 6px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: var(--bg-tertiary);
+      border-radius: 3px;
+      outline: none;
+    }
+
+    .volume-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--accent-secondary);
+      cursor: pointer;
+      transition: transform 0.1s ease;
+    }
+
+    .volume-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
     }
 
     /* Energy meter */
@@ -209,6 +335,45 @@
       background: linear-gradient(90deg, var(--accent-secondary), var(--accent-primary));
       border-radius: 4px;
       transition: width 0.5s ease;
+    }
+
+    /* Up Next */
+    .up-next {
+      background: var(--bg-secondary);
+      border-radius: 20px;
+      padding: 20px 24px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      margin-bottom: 32px;
+      display: none;
+    }
+
+    .up-next.visible {
+      display: block;
+    }
+
+    .up-next-content {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .up-next-icon {
+      font-size: 1.5rem;
+      opacity: 0.7;
+    }
+
+    .up-next-info {
+      flex: 1;
+    }
+
+    .up-next-title {
+      font-weight: 500;
+      margin-bottom: 2px;
+    }
+
+    .up-next-artist {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
     }
 
     /* Mood display */
@@ -281,9 +446,51 @@
       color: var(--text-muted);
       font-style: italic;
     }
+
+    /* Click to start overlay */
+    .start-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(10, 10, 15, 0.95);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      cursor: pointer;
+    }
+
+    .start-overlay.hidden {
+      display: none;
+    }
+
+    .start-icon {
+      font-size: 5rem;
+      margin-bottom: 24px;
+      animation: bounce 2s ease-in-out infinite;
+    }
+
+    .start-text {
+      font-size: 1.5rem;
+      color: var(--text-secondary);
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
   </style>
 </head>
 <body>
+  <!-- Click to start overlay (needed for audio context) -->
+  <div class="start-overlay" id="startOverlay">
+    <div class="start-icon">🎧</div>
+    <div class="start-text">Click anywhere to start the party</div>
+  </div>
+
   <div class="bg-gradient"></div>
   
   <div class="container">
@@ -317,10 +524,45 @@
           <span class="meta-value" id="trackEnergy">—</span>
         </div>
       </div>
+
+      <div class="playback-section">
+        <div class="progress-container">
+          <div class="progress-bar" id="progressBar">
+            <div class="progress-fill" id="progressFill"></div>
+          </div>
+        </div>
+        <div class="time-display">
+          <span id="currentTime">0:00</span>
+          <span id="remainingTime">-0:00</span>
+        </div>
+      </div>
+
+      <div class="controls">
+        <button class="control-btn" id="skipBtn" title="Skip">⏭</button>
+        <button class="control-btn primary" id="playPauseBtn" title="Play/Pause">▶</button>
+        <button class="control-btn" id="stopBtn" title="Stop">⏹</button>
+      </div>
+
+      <div class="volume-container">
+        <span class="volume-icon" id="volumeIcon">🔊</span>
+        <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="80">
+      </div>
+
       <div class="energy-display">
         <div class="section-label">Track Energy</div>
         <div class="energy-bar">
           <div class="energy-fill" id="energyFill" style="width: 0%"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="up-next" id="upNext">
+      <div class="section-label">Up Next</div>
+      <div class="up-next-content">
+        <span class="up-next-icon">⏭</span>
+        <div class="up-next-info">
+          <div class="up-next-title" id="upNextTitle">—</div>
+          <div class="up-next-artist" id="upNextArtist">—</div>
         </div>
       </div>
     </div>
@@ -339,18 +581,24 @@
     <div class="log-card">
       <div class="section-label">Activity Log</div>
       <div class="log-container" id="logContainer">
-        <div class="log-entry placeholder">No activity yet...</div>
+        <div class="log-entry placeholder">Click to start the party...</div>
       </div>
     </div>
   </div>
 
-  <script>
-    // Simple WebSocket client for Phase 1 testing
+  <script type="module">
+    import { DJMixer } from './js/mixer.js';
+
+    // State
     const state = {
       ws: null,
       connected: false,
+      mixer: null,
       currentTrack: null,
+      nextTrack: null,
       mood: null,
+      isPlaying: false,
+      started: false,
     };
 
     const moodIcons = {
@@ -361,6 +609,7 @@
       cooling_down: '🌙',
     };
 
+    // Logging
     function log(message) {
       const container = document.getElementById('logContainer');
       const placeholder = container.querySelector('.placeholder');
@@ -374,17 +623,24 @@
       
       container.insertBefore(entry, container.firstChild);
 
-      // Keep only last 50 entries
       while (container.children.length > 50) {
         container.removeChild(container.lastChild);
       }
     }
 
-    function updateStatus(connected, text) {
+    // Format time as m:ss
+    function formatTime(seconds) {
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.floor(seconds % 60);
+      return `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    // UI Updates
+    function updateStatus(status, text) {
       const dot = document.getElementById('statusDot');
       const statusText = document.getElementById('statusText');
       
-      dot.className = 'status-dot ' + (connected ? 'connected' : 'connecting');
+      dot.className = 'status-dot ' + status;
       statusText.textContent = text;
     }
 
@@ -401,6 +657,40 @@
       document.getElementById('energyFill').style.width = (track.energy * 100) + '%';
     }
 
+    function updateUpNext(track) {
+      const upNextEl = document.getElementById('upNext');
+      if (!track) {
+        upNextEl.classList.remove('visible');
+        state.nextTrack = null;
+        return;
+      }
+      
+      state.nextTrack = track;
+      document.getElementById('upNextTitle').textContent = track.title;
+      document.getElementById('upNextArtist').textContent = track.artist;
+      upNextEl.classList.add('visible');
+    }
+
+    function updatePlaybackTime(currentTime, duration, remaining) {
+      document.getElementById('currentTime').textContent = formatTime(currentTime);
+      document.getElementById('remainingTime').textContent = '-' + formatTime(remaining);
+      
+      const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+      document.getElementById('progressFill').style.width = progress + '%';
+    }
+
+    function updatePlayPauseButton(isPlaying) {
+      const btn = document.getElementById('playPauseBtn');
+      btn.textContent = isPlaying ? '⏸' : '▶';
+      state.isPlaying = isPlaying;
+      
+      if (isPlaying) {
+        updateStatus('playing', 'Playing');
+      } else if (state.connected) {
+        updateStatus('connected', 'Paused');
+      }
+    }
+
     function updateMood(mood) {
       if (!mood) return;
       
@@ -415,22 +705,74 @@
         `Energy: ${(mood.energy * 100).toFixed(0)}% ${trendText}`;
     }
 
+    // Initialize mixer
+    function initMixer() {
+      state.mixer = new DJMixer();
+      
+      // Set initial volume
+      const volumeSlider = document.getElementById('volumeSlider');
+      state.mixer.setMasterVolume(volumeSlider.value / 100);
+
+      // Mixer callbacks
+      state.mixer.onTimeUpdate = (info) => {
+        updatePlaybackTime(info.currentTime, info.duration, info.remaining);
+      };
+
+      state.mixer.onTrackEnding = (info) => {
+        log(`⏰ Track ending in ${Math.round(info.remainingSeconds)}s, requesting next...`);
+        sendMessage({
+          type: 'track_ending',
+          trackId: info.trackId,
+          remainingSeconds: info.remainingSeconds,
+        });
+      };
+
+      state.mixer.onTrackStarted = (info) => {
+        updatePlayPauseButton(true);
+        sendMessage({
+          type: 'track_started',
+          trackId: info.trackId,
+          timestamp: Date.now(),
+        });
+      };
+
+      state.mixer.onTrackEnded = (info) => {
+        sendMessage({
+          type: 'track_ended',
+          trackId: info.trackId,
+        });
+      };
+
+      state.mixer.onError = (error) => {
+        log(`❌ Audio error: ${error.message}`);
+      };
+
+      console.log('[App] Mixer initialized');
+    }
+
+    // WebSocket
+    function sendMessage(message) {
+      if (state.ws && state.ws.readyState === WebSocket.OPEN) {
+        state.ws.send(JSON.stringify(message));
+      }
+    }
+
     function connect() {
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
       const wsUrl = `${protocol}//${window.location.host}`;
       
       log('Connecting to server...');
-      updateStatus(false, 'Connecting...');
+      updateStatus('connecting', 'Connecting...');
 
       state.ws = new WebSocket(wsUrl);
 
       state.ws.onopen = () => {
         state.connected = true;
-        updateStatus(true, 'Connected');
+        updateStatus('connected', 'Connected');
         log('Connected to AI DJ server');
         
         // Send ready message
-        state.ws.send(JSON.stringify({ type: 'client_ready' }));
+        sendMessage({ type: 'client_ready' });
       };
 
       state.ws.onmessage = (event) => {
@@ -444,7 +786,7 @@
 
       state.ws.onclose = () => {
         state.connected = false;
-        updateStatus(false, 'Disconnected');
+        updateStatus('connecting', 'Disconnected');
         log('Disconnected from server');
         
         // Auto-reconnect after 3 seconds
@@ -457,13 +799,26 @@
       };
     }
 
-    function handleMessage(message) {
+    async function handleMessage(message) {
       switch (message.type) {
         case 'play_track':
-          updateTrack(message.track);
-          log(`🎵 Now playing: "${message.track.title}" by ${message.track.artist}`);
+          const track = message.track;
+          
+          if (message.queuePosition === 'immediate') {
+            // Play immediately on active deck
+            log(`🎵 Playing: "${track.title}" by ${track.artist}`);
+            updateTrack(track);
+            await state.mixer.playImmediate(track);
+            updatePlayPauseButton(true);
+          } else {
+            // Queue for next
+            log(`⏭ Queued: "${track.title}" by ${track.artist}`);
+            updateUpNext(track);
+            await state.mixer.queueNext(track);
+          }
+          
           if (message.reason) {
-            log(`   Selection reason: ${message.reason}`);
+            log(`   └ ${message.reason}`);
           }
           break;
 
@@ -474,7 +829,24 @@
           if (message.currentMood) {
             updateMood(message.currentMood);
           }
-          log(`Status: ${message.state}`);
+          break;
+
+        case 'pause':
+          state.mixer.pause();
+          updatePlayPauseButton(false);
+          log('⏸ Paused');
+          break;
+
+        case 'resume':
+          state.mixer.resume();
+          updatePlayPauseButton(true);
+          log('▶ Resumed');
+          break;
+
+        case 'stop':
+          state.mixer.stop();
+          updatePlayPauseButton(false);
+          log('⏹ Stopped');
           break;
 
         case 'error':
@@ -482,13 +854,109 @@
           break;
 
         default:
-          log(`Received: ${message.type}`);
+          console.log('Unknown message:', message);
       }
     }
 
-    // Start connection
-    connect();
+    // Control handlers
+    function setupControls() {
+      // Play/Pause button
+      document.getElementById('playPauseBtn').addEventListener('click', () => {
+        if (state.isPlaying) {
+          state.mixer.pause();
+          updatePlayPauseButton(false);
+          log('⏸ Paused');
+        } else {
+          state.mixer.resume();
+          updatePlayPauseButton(true);
+          log('▶ Resumed');
+        }
+      });
+
+      // Skip button
+      document.getElementById('skipBtn').addEventListener('click', async () => {
+        if (state.nextTrack) {
+          log(`⏭ Skipping to: "${state.nextTrack.title}"`);
+          updateTrack(state.nextTrack);
+          await state.mixer.skipToNext();
+          updateUpNext(null);
+        } else {
+          log('⏭ No track queued, requesting next...');
+          sendMessage({
+            type: 'track_ending',
+            trackId: state.currentTrack?.id,
+            remainingSeconds: 0,
+          });
+        }
+      });
+
+      // Stop button
+      document.getElementById('stopBtn').addEventListener('click', () => {
+        state.mixer.stop();
+        updatePlayPauseButton(false);
+        updatePlaybackTime(0, 0, 0);
+        log('⏹ Stopped');
+      });
+
+      // Volume slider
+      const volumeSlider = document.getElementById('volumeSlider');
+      const volumeIcon = document.getElementById('volumeIcon');
+      
+      volumeSlider.addEventListener('input', (e) => {
+        const volume = e.target.value / 100;
+        state.mixer.setMasterVolume(volume);
+        
+        // Update icon
+        if (volume === 0) {
+          volumeIcon.textContent = '🔇';
+        } else if (volume < 0.5) {
+          volumeIcon.textContent = '🔉';
+        } else {
+          volumeIcon.textContent = '🔊';
+        }
+      });
+
+      // Volume icon click to mute/unmute
+      let lastVolume = 80;
+      volumeIcon.addEventListener('click', () => {
+        if (volumeSlider.value > 0) {
+          lastVolume = volumeSlider.value;
+          volumeSlider.value = 0;
+          state.mixer.setMasterVolume(0);
+          volumeIcon.textContent = '🔇';
+        } else {
+          volumeSlider.value = lastVolume;
+          state.mixer.setMasterVolume(lastVolume / 100);
+          volumeIcon.textContent = lastVolume < 50 ? '🔉' : '🔊';
+        }
+      });
+    }
+
+    // Start the app
+    function start() {
+      if (state.started) return;
+      state.started = true;
+
+      // Hide overlay
+      document.getElementById('startOverlay').classList.add('hidden');
+      
+      // Initialize
+      initMixer();
+      setupControls();
+      connect();
+      
+      log('🎧 AI DJ started');
+    }
+
+    // Wait for user interaction to start (required for Web Audio)
+    document.getElementById('startOverlay').addEventListener('click', start);
+    
+    // Also start on any keypress
+    document.addEventListener('keydown', (e) => {
+      if (!state.started && e.key !== 'Escape') {
+        start();
+      }
+    });
   </script>
 </body>
 </html>
-

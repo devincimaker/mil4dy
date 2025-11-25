@@ -1,8 +1,8 @@
 /**
  * DJ Controller
  *
- * Stub implementation for Phase 1 - will be fully implemented in Phase 3.
- * Orchestrates mood detection, song selection, and playback.
+ * Main orchestrator for the AI DJ system.
+ * Manages mood detection, song selection, and playback coordination.
  */
 
 import { MusicLibrary, Track } from '../music/index.js';
@@ -15,6 +15,8 @@ import {
   ServerMessage,
   PlayTrackMessage,
   StatusMessage,
+  PauseMessage,
+  ResumeMessage,
 } from '../server/index.js';
 
 export type DJState = 'idle' | 'starting' | 'playing' | 'paused' | 'stopping';
@@ -28,11 +30,13 @@ export interface DJControllerOptions {
   port?: number;
   /** Path to public directory */
   publicDir?: string;
+  /** Minimum track play time in seconds before allowing skip (default: 30) */
+  minTrackPlayTime?: number;
 }
 
 /**
  * Main DJ controller that orchestrates all components.
- * Phase 1 implementation - basic wiring only.
+ * Coordinates mood detection, song selection, and browser playback.
  */
 export class DJController {
   private state: DJState = 'idle';
@@ -40,14 +44,22 @@ export class DJController {
   private moodDetector: MoodDetector;
   private selector: SongSelector;
   private server: DJServer;
-  private options: DJControllerOptions;
+  private options: Required<DJControllerOptions>;
 
   private currentTrack: Track | null = null;
   private nextTrack: Track | null = null;
   private startTime: number = 0;
+  private currentTrackStartTime: number = 0;
 
   constructor(options: DJControllerOptions) {
-    this.options = options;
+    this.options = {
+      libraryPath: options.libraryPath,
+      musicDir: options.musicDir,
+      port: options.port ?? 3000,
+      publicDir: options.publicDir ?? 'public',
+      minTrackPlayTime: options.minTrackPlayTime ?? 30,
+    };
+
     this.library = new MusicLibrary();
     this.moodDetector = new RandomMoodDetector();
     this.selector = new SongSelector(this.library);
@@ -60,9 +72,9 @@ export class DJController {
         onDisconnect: this.handleClientDisconnect.bind(this),
       },
       {
-        port: options.port ?? 3000,
-        publicDir: options.publicDir,
-        musicDir: options.musicDir,
+        port: this.options.port,
+        publicDir: this.options.publicDir,
+        musicDir: this.options.musicDir,
       }
     );
 
@@ -131,6 +143,44 @@ export class DJController {
   }
 
   /**
+   * Pause playback.
+   * Broadcasts pause command to all connected clients.
+   */
+  pause(): void {
+    if (this.state !== 'playing') {
+      console.log('Cannot pause: DJ is not playing');
+      return;
+    }
+
+    this.state = 'paused';
+    this.moodDetector.stop();
+
+    const pauseMessage: PauseMessage = { type: 'pause' };
+    const clientCount = this.server.broadcast(pauseMessage);
+
+    console.log(`⏸️  Paused (notified ${clientCount} clients)`);
+  }
+
+  /**
+   * Resume playback.
+   * Broadcasts resume command to all connected clients.
+   */
+  resume(): void {
+    if (this.state !== 'paused') {
+      console.log('Cannot resume: DJ is not paused');
+      return;
+    }
+
+    this.state = 'playing';
+    this.moodDetector.start();
+
+    const resumeMessage: ResumeMessage = { type: 'resume' };
+    const clientCount = this.server.broadcast(resumeMessage);
+
+    console.log(`▶️  Resumed (notified ${clientCount} clients)`);
+  }
+
+  /**
    * Get current state.
    */
   getState(): DJState {
@@ -164,17 +214,22 @@ export class DJController {
 
       case 'mood_update':
         // Will be used for camera-based mood detection in Phase 4
-        console.log(`   Mood update: ${message.mood.level} (${message.mood.energy.toFixed(2)})`);
+        console.log(
+          `   Mood update: ${message.mood.level} (${message.mood.energy.toFixed(2)})`
+        );
         break;
 
       case 'track_started':
         console.log(`   Track started: ${message.trackId}`);
+        this.currentTrackStartTime = Date.now();
         this.selector.recordPlay(message.trackId);
         break;
 
       case 'track_ending':
-        console.log(`   Track ending: ${message.trackId}, ${message.remainingSeconds}s remaining`);
-        this.prepareNextTrack(connection);
+        console.log(
+          `   Track ending: ${message.trackId}, ${message.remainingSeconds}s remaining`
+        );
+        this.handleTrackEnding(connection, message.trackId);
         break;
 
       case 'track_ended':
@@ -206,9 +261,10 @@ export class DJController {
     // Select and send first track
     const mood = this.moodDetector.getCurrentMood();
     const selection = this.selector.selectNext(mood);
-    
+
     this.currentTrack = selection.track;
-    
+    this.currentTrackStartTime = Date.now();
+
     const playMessage: PlayTrackMessage = {
       type: 'play_track',
       track: selection.track,
@@ -217,8 +273,29 @@ export class DJController {
     };
 
     connection.send(playMessage);
-    console.log(`🎵 Playing: "${selection.track.title}" by ${selection.track.artist}`);
+    console.log(
+      `🎵 Playing: "${selection.track.title}" by ${selection.track.artist}`
+    );
     console.log(`   Reason: ${selection.reason}`);
+  }
+
+  /**
+   * Handle track ending event with minimum play time check.
+   */
+  private handleTrackEnding(
+    connection: ClientConnection,
+    trackId: string
+  ): void {
+    const playedSeconds = (Date.now() - this.currentTrackStartTime) / 1000;
+    const minTime = this.options.minTrackPlayTime;
+
+    if (playedSeconds < minTime) {
+      console.log(
+        `   ⚠️ Track only played ${playedSeconds.toFixed(0)}s (min: ${minTime}s), but allowing natural transition`
+      );
+    }
+
+    this.prepareNextTrack(connection);
   }
 
   /**
@@ -226,10 +303,13 @@ export class DJController {
    */
   private prepareNextTrack(connection: ClientConnection): void {
     const mood = this.moodDetector.getCurrentMood();
-    const selection = this.selector.selectNext(mood, this.currentTrack ?? undefined);
-    
+    const selection = this.selector.selectNext(
+      mood,
+      this.currentTrack ?? undefined
+    );
+
     this.nextTrack = selection.track;
-    
+
     const playMessage: PlayTrackMessage = {
       type: 'play_track',
       track: selection.track,
@@ -238,7 +318,9 @@ export class DJController {
     };
 
     connection.send(playMessage);
-    console.log(`⏭️  Next up: "${selection.track.title}" by ${selection.track.artist}`);
+    console.log(
+      `⏭️  Next up: "${selection.track.title}" by ${selection.track.artist}`
+    );
     console.log(`   Reason: ${selection.reason}`);
   }
 
@@ -247,7 +329,9 @@ export class DJController {
    */
   private handleMoodChange(mood: MoodState): void {
     // Log significant mood changes
-    console.log(`🌡️  Mood: ${mood.level} (${mood.energy.toFixed(2)}) [${mood.trend}]`);
+    console.log(
+      `🌡️  Mood: ${mood.level} (${mood.energy.toFixed(2)}) [${mood.trend}]`
+    );
   }
 
   /**
@@ -256,7 +340,12 @@ export class DJController {
   private sendStatus(connection: ClientConnection): void {
     const status: StatusMessage = {
       type: 'status',
-      state: this.state === 'playing' ? 'playing' : this.state === 'paused' ? 'paused' : 'idle',
+      state:
+        this.state === 'playing'
+          ? 'playing'
+          : this.state === 'paused'
+            ? 'paused'
+            : 'idle',
       currentTrack: this.currentTrack,
       nextTrack: this.nextTrack,
       currentMood: this.moodDetector.getCurrentMood(),
@@ -265,4 +354,3 @@ export class DJController {
     connection.send(status);
   }
 }
-

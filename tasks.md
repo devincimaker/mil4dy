@@ -1,8 +1,10 @@
 To-Do
-[ ] I need to analyze those tracks and save metadata from them.
+[ ] Phase 4: Camera-based mood detection
 
 Doing
-[ ] Generate the metadata for all the songs.
 
 Done
 [x] Get 10 songs for the bot to mix.
+[x] Analyze tracks and save metadata (88 tracks in library.json)
+[x] Phase 0-2: Project setup, backend, browser audio playback
+[x] Phase 3: DJ Controller with state machine, pause/resume, CLI args
