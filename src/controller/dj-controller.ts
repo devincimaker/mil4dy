@@ -6,7 +6,12 @@
  */
 
 import { MusicLibrary, Track } from '../music/index.js';
-import { MoodState, MoodDetector, RandomMoodDetector } from '../mood/index.js';
+import {
+  MoodState,
+  MoodDetector,
+  RandomMoodDetector,
+  CameraMoodDetector,
+} from '../mood/index.js';
 import { SongSelector, SelectionResult } from '../selection/index.js';
 import {
   DJServer,
@@ -17,6 +22,7 @@ import {
   StatusMessage,
   PauseMessage,
   ResumeMessage,
+  MoodBroadcastMessage,
 } from '../server/index.js';
 
 export type DJState = 'idle' | 'starting' | 'playing' | 'paused' | 'stopping';
@@ -41,7 +47,8 @@ export interface DJControllerOptions {
 export class DJController {
   private state: DJState = 'idle';
   private library: MusicLibrary;
-  private moodDetector: MoodDetector;
+  private randomMoodDetector: RandomMoodDetector;
+  private cameraMoodDetector: CameraMoodDetector;
   private selector: SongSelector;
   private server: DJServer;
   private options: Required<DJControllerOptions>;
@@ -50,6 +57,9 @@ export class DJController {
   private nextTrack: Track | null = null;
   private startTime: number = 0;
   private currentTrackStartTime: number = 0;
+
+  // Track which mood source is active
+  private moodSource: 'camera' | 'random' = 'random';
 
   constructor(options: DJControllerOptions) {
     this.options = {
@@ -61,7 +71,8 @@ export class DJController {
     };
 
     this.library = new MusicLibrary();
-    this.moodDetector = new RandomMoodDetector();
+    this.randomMoodDetector = new RandomMoodDetector();
+    this.cameraMoodDetector = new CameraMoodDetector();
     this.selector = new SongSelector(this.library);
 
     // Create server with event handlers
@@ -78,8 +89,26 @@ export class DJController {
       }
     );
 
-    // Set up mood change listener
-    this.moodDetector.onMoodChange(this.handleMoodChange.bind(this));
+    // Set up mood change listeners for both detectors
+    this.randomMoodDetector.onMoodChange((mood) => {
+      if (this.moodSource === 'random') {
+        this.handleMoodChange(mood);
+      }
+    });
+
+    this.cameraMoodDetector.onMoodChange((mood) => {
+      if (this.moodSource === 'camera') {
+        this.handleMoodChange(mood);
+      }
+    });
+
+    // Handle camera timeout - fall back to random
+    this.cameraMoodDetector.onTimeout = () => {
+      if (this.moodSource === 'camera') {
+        console.log('📷 Camera inactive, falling back to random mood');
+        this.moodSource = 'random';
+      }
+    };
   }
 
   /**
@@ -112,8 +141,8 @@ export class DJController {
       // Start server
       await this.server.start();
 
-      // Start mood detector
-      this.moodDetector.start();
+      // Start random mood detector (camera detector starts when receiving updates)
+      this.randomMoodDetector.start();
 
       this.state = 'playing';
       console.log('🎧 AI DJ is ready!');
@@ -133,7 +162,8 @@ export class DJController {
 
     this.state = 'stopping';
 
-    this.moodDetector.stop();
+    this.randomMoodDetector.stop();
+    this.cameraMoodDetector.stop();
     await this.server.stop();
 
     this.state = 'idle';
@@ -153,7 +183,8 @@ export class DJController {
     }
 
     this.state = 'paused';
-    this.moodDetector.stop();
+    this.randomMoodDetector.stop();
+    this.cameraMoodDetector.stop();
 
     const pauseMessage: PauseMessage = { type: 'pause' };
     const clientCount = this.server.broadcast(pauseMessage);
@@ -172,7 +203,12 @@ export class DJController {
     }
 
     this.state = 'playing';
-    this.moodDetector.start();
+    // Restart the appropriate mood detector
+    if (this.moodSource === 'camera') {
+      this.cameraMoodDetector.start();
+    } else {
+      this.randomMoodDetector.start();
+    }
 
     const resumeMessage: ResumeMessage = { type: 'resume' };
     const clientCount = this.server.broadcast(resumeMessage);
@@ -188,10 +224,20 @@ export class DJController {
   }
 
   /**
-   * Get current mood.
+   * Get current mood from the active detector.
    */
   getCurrentMood(): MoodState {
-    return this.moodDetector.getCurrentMood();
+    if (this.moodSource === 'camera') {
+      return this.cameraMoodDetector.getCurrentMood();
+    }
+    return this.randomMoodDetector.getCurrentMood();
+  }
+
+  /**
+   * Get current mood source.
+   */
+  getMoodSource(): 'camera' | 'random' {
+    return this.moodSource;
   }
 
   /**
@@ -213,10 +259,7 @@ export class DJController {
         break;
 
       case 'mood_update':
-        // Will be used for camera-based mood detection in Phase 4
-        console.log(
-          `   Mood update: ${message.mood.level} (${message.mood.energy.toFixed(2)})`
-        );
+        this.handleCameraMoodUpdate(message.mood);
         break;
 
       case 'track_started':
@@ -259,7 +302,7 @@ export class DJController {
    */
   private handleClientReady(connection: ClientConnection): void {
     // Select and send first track
-    const mood = this.moodDetector.getCurrentMood();
+    const mood = this.getCurrentMood();
     const selection = this.selector.selectNext(mood);
 
     this.currentTrack = selection.track;
@@ -302,7 +345,7 @@ export class DJController {
    * Prepare and queue the next track.
    */
   private prepareNextTrack(connection: ClientConnection): void {
-    const mood = this.moodDetector.getCurrentMood();
+    const mood = this.getCurrentMood();
     const selection = this.selector.selectNext(
       mood,
       this.currentTrack ?? undefined
@@ -326,11 +369,50 @@ export class DJController {
 
   /**
    * Handle mood changes from detector.
+   * Broadcasts mood to all connected clients.
    */
   private handleMoodChange(mood: MoodState): void {
     // Log significant mood changes
     console.log(
-      `🌡️  Mood: ${mood.level} (${mood.energy.toFixed(2)}) [${mood.trend}]`
+      `🌡️  Mood: ${mood.level} (${mood.energy.toFixed(2)}) [${mood.trend}] (${this.moodSource})`
+    );
+
+    // Broadcast mood to all clients
+    const moodBroadcast: MoodBroadcastMessage = {
+      type: 'mood_broadcast',
+      mood,
+      source: this.moodSource,
+    };
+    this.server.broadcast(moodBroadcast);
+  }
+
+  /**
+   * Handle camera mood update from browser.
+   */
+  private handleCameraMoodUpdate(browserMood: {
+    level: string;
+    energy: number;
+    trend: 'rising' | 'falling' | 'stable';
+    confidence: number;
+  }): void {
+    // Switch to camera mode if not already
+    if (this.moodSource !== 'camera') {
+      console.log('📷 Switching to camera-based mood detection');
+      this.moodSource = 'camera';
+      this.randomMoodDetector.stop();
+      this.cameraMoodDetector.start();
+    }
+
+    // Process the update through camera detector
+    this.cameraMoodDetector.processBrowserUpdate({
+      level: browserMood.level as MoodState['level'],
+      energy: browserMood.energy,
+      trend: browserMood.trend,
+      confidence: browserMood.confidence,
+    });
+
+    console.log(
+      `   📷 Camera mood: ${browserMood.level} (${browserMood.energy.toFixed(2)})`
     );
   }
 
@@ -348,7 +430,7 @@ export class DJController {
             : 'idle',
       currentTrack: this.currentTrack,
       nextTrack: this.nextTrack,
-      currentMood: this.moodDetector.getCurrentMood(),
+      currentMood: this.getCurrentMood(),
       uptime: Date.now() - this.startTime,
     };
     connection.send(status);

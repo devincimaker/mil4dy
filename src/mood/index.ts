@@ -15,4 +15,5 @@ export {
 
 export { BaseMoodDetector } from './detector.js';
 export { RandomMoodDetector, RandomDetectorOptions } from './random-detector.js';
+export { CameraMoodDetector, CameraDetectorOptions } from './camera-detector.js';
 

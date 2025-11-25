@@ -447,6 +447,164 @@
       font-style: italic;
     }
 
+    /* Camera Card */
+    .camera-card {
+      background: var(--bg-secondary);
+      border-radius: 20px;
+      padding: 24px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      margin-bottom: 32px;
+    }
+
+    .camera-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .camera-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .camera-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background: var(--bg-tertiary);
+      border: none;
+      border-radius: 20px;
+      color: var(--text-primary);
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .camera-toggle:hover {
+      background: var(--accent-primary);
+    }
+
+    .camera-toggle.active {
+      background: var(--accent-secondary);
+      color: var(--bg-primary);
+    }
+
+    .camera-select {
+      padding: 8px 12px;
+      background: var(--bg-tertiary);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      color: var(--text-primary);
+      font-size: 0.85rem;
+      cursor: pointer;
+      max-width: 200px;
+    }
+
+    .camera-select:focus {
+      outline: none;
+      border-color: var(--accent-secondary);
+    }
+
+    .camera-preview-container {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .camera-preview {
+      position: relative;
+      flex: 1;
+      aspect-ratio: 4/3;
+      background: var(--bg-tertiary);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .camera-preview video,
+    .camera-preview canvas {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .camera-preview-label {
+      position: absolute;
+      bottom: 8px;
+      left: 8px;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      background: rgba(0, 0, 0, 0.5);
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+
+    .camera-placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--text-muted);
+    }
+
+    .camera-placeholder-icon {
+      font-size: 3rem;
+      margin-bottom: 12px;
+      opacity: 0.5;
+    }
+
+    .motion-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .motion-stat {
+      text-align: center;
+      padding: 12px;
+      background: var(--bg-tertiary);
+      border-radius: 12px;
+    }
+
+    .motion-stat-value {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: var(--accent-secondary);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .motion-stat-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-top: 4px;
+    }
+
+    .motion-bar-container {
+      margin-top: 16px;
+    }
+
+    .motion-bar {
+      height: 8px;
+      background: var(--bg-tertiary);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .motion-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent-secondary), var(--accent-primary));
+      border-radius: 4px;
+      transition: width 0.1s ease;
+      width: 0%;
+    }
+
     /* Click to start overlay */
     .start-overlay {
       position: fixed;
@@ -567,6 +725,58 @@
       </div>
     </div>
 
+    <div class="camera-card">
+      <div class="camera-header">
+        <div class="section-label">Camera Mood Detection</div>
+        <div class="camera-controls">
+          <select class="camera-select" id="cameraSelect" disabled>
+            <option value="">Select camera...</option>
+          </select>
+          <button class="camera-toggle" id="cameraToggle">
+            <span>📷</span>
+            <span id="cameraToggleText">Enable Camera</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="camera-preview-container">
+        <div class="camera-preview" id="cameraPreviewContainer">
+          <video id="cameraVideo" autoplay playsinline muted style="display: none;"></video>
+          <div class="camera-placeholder" id="cameraPlaceholder">
+            <div class="camera-placeholder-icon">📷</div>
+            <div>Camera disabled</div>
+          </div>
+          <div class="camera-preview-label">Live Feed</div>
+        </div>
+        <div class="camera-preview">
+          <canvas id="motionCanvas"></canvas>
+          <div class="camera-preview-label">Motion Detection</div>
+        </div>
+      </div>
+
+      <div class="motion-stats">
+        <div class="motion-stat">
+          <div class="motion-stat-value" id="motionRaw">0%</div>
+          <div class="motion-stat-label">Raw Motion</div>
+        </div>
+        <div class="motion-stat">
+          <div class="motion-stat-value" id="motionSmoothed">0%</div>
+          <div class="motion-stat-label">Smoothed</div>
+        </div>
+        <div class="motion-stat">
+          <div class="motion-stat-value" id="motionConfidence">0%</div>
+          <div class="motion-stat-label">Confidence</div>
+        </div>
+      </div>
+
+      <div class="motion-bar-container">
+        <div class="section-label" style="margin-bottom: 8px;">Motion Level</div>
+        <div class="motion-bar">
+          <div class="motion-bar-fill" id="motionBarFill"></div>
+        </div>
+      </div>
+    </div>
+
     <div class="mood-card">
       <div class="section-label">Detected Mood</div>
       <div class="mood-level">
@@ -588,6 +798,9 @@
 
   <script type="module">
     import { DJMixer } from './js/mixer.js';
+    import { Camera } from './js/camera.js';
+    import { MotionDetector } from './js/motion-detector.js';
+    import { MoodAnalyzer } from './js/mood-analyzer.js';
 
     // State
     const state = {
@@ -599,6 +812,11 @@
       mood: null,
       isPlaying: false,
       started: false,
+      // Camera state
+      camera: null,
+      motionDetector: null,
+      moodAnalyzer: null,
+      cameraEnabled: false,
     };
 
     const moodIcons = {
@@ -703,6 +921,155 @@
                         mood.trend === 'falling' ? '↓ Falling' : '→ Stable';
       document.getElementById('moodTrend').textContent = 
         `Energy: ${(mood.energy * 100).toFixed(0)}% ${trendText}`;
+    }
+
+    // Update motion stats display
+    function updateMotionStats(mood) {
+      document.getElementById('motionRaw').textContent = 
+        `${mood.motionRaw?.toFixed(0) ?? 0}%`;
+      document.getElementById('motionSmoothed').textContent = 
+        `${mood.motionSmoothed?.toFixed(0) ?? 0}%`;
+      document.getElementById('motionConfidence').textContent = 
+        `${((mood.confidence ?? 0) * 100).toFixed(0)}%`;
+      document.getElementById('motionBarFill').style.width = 
+        `${mood.motionSmoothed ?? 0}%`;
+    }
+
+    // Initialize camera system
+    async function initCamera() {
+      const videoElement = document.getElementById('cameraVideo');
+      const motionCanvas = document.getElementById('motionCanvas');
+      
+      // Create camera
+      state.camera = new Camera();
+      await state.camera.init(videoElement);
+
+      // Create motion detector with debug canvas
+      state.motionDetector = new MotionDetector({
+        threshold: 25,
+        backgroundAlpha: 0.05,
+      });
+      state.motionDetector.enableDebug(motionCanvas);
+
+      // Create mood analyzer
+      state.moodAnalyzer = new MoodAnalyzer({
+        smoothingWindow: 5000,
+        updateInterval: 1000,
+      });
+
+      // Wire up callbacks
+      state.camera.onFrame = (frame) => {
+        const motion = state.motionDetector.processFrame(frame);
+        state.moodAnalyzer.processMotion(motion);
+      };
+
+      state.camera.onError = (error) => {
+        log(`📷 Camera error: ${error.message}`);
+        setCameraEnabled(false);
+      };
+
+      state.camera.onDevicesChanged = (devices) => {
+        updateCameraDeviceList(devices);
+      };
+
+      state.moodAnalyzer.onMoodUpdate = (mood) => {
+        // Update local display
+        updateMood(mood);
+        updateMotionStats(mood);
+
+        // Send to server
+        if (state.connected) {
+          sendMessage({
+            type: 'mood_update',
+            mood: state.moodAnalyzer.getMoodForServer(),
+          });
+        }
+      };
+
+      // Set up camera controls
+      setupCameraControls();
+
+      console.log('[App] Camera system initialized');
+    }
+
+    // Update camera device dropdown
+    function updateCameraDeviceList(devices) {
+      const select = document.getElementById('cameraSelect');
+      const currentValue = select.value;
+      
+      select.innerHTML = '<option value="">Select camera...</option>';
+      
+      devices.forEach((device, index) => {
+        const option = document.createElement('option');
+        option.value = device.deviceId;
+        option.textContent = device.label || `Camera ${index + 1}`;
+        select.appendChild(option);
+      });
+
+      // Restore selection if still available
+      if (currentValue && devices.find(d => d.deviceId === currentValue)) {
+        select.value = currentValue;
+      }
+
+      select.disabled = devices.length === 0;
+    }
+
+    // Set camera enabled state
+    async function setCameraEnabled(enabled) {
+      const toggle = document.getElementById('cameraToggle');
+      const toggleText = document.getElementById('cameraToggleText');
+      const video = document.getElementById('cameraVideo');
+      const placeholder = document.getElementById('cameraPlaceholder');
+
+      if (enabled) {
+        const deviceId = document.getElementById('cameraSelect').value || null;
+        const started = await state.camera.start(deviceId);
+        
+        if (started) {
+          state.cameraEnabled = true;
+          state.moodAnalyzer.start();
+          
+          toggle.classList.add('active');
+          toggleText.textContent = 'Disable Camera';
+          video.style.display = 'block';
+          placeholder.style.display = 'none';
+          
+          log('📷 Camera enabled - detecting motion');
+        }
+      } else {
+        await state.camera.stop();
+        state.moodAnalyzer.stop();
+        state.motionDetector.reset();
+        state.cameraEnabled = false;
+        
+        toggle.classList.remove('active');
+        toggleText.textContent = 'Enable Camera';
+        video.style.display = 'none';
+        placeholder.style.display = 'flex';
+        
+        // Reset motion display
+        updateMotionStats({ motionRaw: 0, motionSmoothed: 0, confidence: 0 });
+        
+        log('📷 Camera disabled');
+      }
+    }
+
+    // Set up camera control event handlers
+    function setupCameraControls() {
+      const toggle = document.getElementById('cameraToggle');
+      const select = document.getElementById('cameraSelect');
+
+      toggle.addEventListener('click', () => {
+        setCameraEnabled(!state.cameraEnabled);
+      });
+
+      select.addEventListener('change', async (e) => {
+        if (state.cameraEnabled && e.target.value) {
+          await state.camera.switchDevice(e.target.value);
+          state.motionDetector.reset();
+          log(`📷 Switched to: ${e.target.selectedOptions[0].textContent}`);
+        }
+      });
     }
 
     // Initialize mixer
@@ -831,6 +1198,13 @@
           }
           break;
 
+        case 'mood_broadcast':
+          // Update mood from server broadcast (when not using local camera)
+          if (!state.cameraEnabled) {
+            updateMood(message.mood);
+          }
+          break;
+
         case 'pause':
           state.mixer.pause();
           updatePlayPauseButton(false);
@@ -933,7 +1307,7 @@
     }
 
     // Start the app
-    function start() {
+    async function start() {
       if (state.started) return;
       state.started = true;
 
@@ -943,6 +1317,7 @@
       // Initialize
       initMixer();
       setupControls();
+      await initCamera();
       connect();
       
       log('🎧 AI DJ started');

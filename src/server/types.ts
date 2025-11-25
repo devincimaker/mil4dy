@@ -122,6 +122,15 @@ export interface ErrorMessage extends BaseMessage {
   details?: string;
 }
 
+/**
+ * Mood broadcast to all clients.
+ */
+export interface MoodBroadcastMessage extends BaseMessage {
+  type: 'mood_broadcast';
+  mood: MoodState;
+  source: 'camera' | 'random';
+}
+
 // ============================================
 // Union Types
 // ============================================
@@ -146,7 +155,8 @@ export type ServerMessage =
   | PauseMessage
   | ResumeMessage
   | StopMessage
-  | ErrorMessage;
+  | ErrorMessage
+  | MoodBroadcastMessage;
 
 /**
  * Type guard for client messages.

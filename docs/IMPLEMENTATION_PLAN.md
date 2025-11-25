@@ -186,32 +186,32 @@ This document outlines the step-by-step implementation plan for the AI DJ projec
 
 ---
 
-## Phase 4: Camera-Based Mood Detection
+## Phase 4: Camera-Based Mood Detection ✅
 
-### Step 4.1: Camera Capture
+### Step 4.1: Camera Capture ✅
 
-- [ ] Create `public/js/camera.js`
-- [ ] Request camera permission via `getUserMedia`
-- [ ] Display live preview in `<video>` element
-- [ ] Handle permission denied / no camera errors
-- [ ] Allow camera device selection (if multiple)
+- [x] Create `public/js/camera.js`
+- [x] Request camera permission via `getUserMedia`
+- [x] Display live preview in `<video>` element
+- [x] Handle permission denied / no camera errors
+- [x] Allow camera device selection (if multiple)
 
-**Deliverable**: Camera feed visible in browser
+**Deliverable**: Camera feed visible in browser ✅
 
 ---
 
-### Step 4.2: Motion Detection Algorithm
+### Step 4.2: Motion Detection Algorithm ✅
 
-- [ ] Create `public/js/motion-detector.js`
-- [ ] Capture frames to hidden `<canvas>`
-- [ ] Convert to grayscale
-- [ ] Implement background model (rolling average)
-- [ ] Calculate frame difference from background
-- [ ] Threshold difference to create motion mask
-- [ ] Count motion pixels as percentage of frame
-- [ ] Update background model slowly
+- [x] Create `public/js/motion-detector.js`
+- [x] Capture frames to hidden `<canvas>`
+- [x] Convert to grayscale
+- [x] Implement background model (rolling average)
+- [x] Calculate frame difference from background
+- [x] Threshold difference to create motion mask
+- [x] Count motion pixels as percentage of frame
+- [x] Update background model slowly
 
-**Deliverable**: Real-time motion percentage value (0-100%)
+**Deliverable**: Real-time motion percentage value (0-100%) ✅
 
 ---
 
@@ -222,35 +222,35 @@ This document outlines the step-by-step implementation plan for the AI DJ projec
 - [ ] Calculate total area of significant motion regions
 - [ ] This gives cleaner motion estimate than raw pixel count
 
-**Deliverable**: More accurate motion detection
+**Deliverable**: More accurate motion detection (SKIPPED - basic detection sufficient)
 
 ---
 
-### Step 4.4: Motion to Mood Mapping
+### Step 4.4: Motion to Mood Mapping ✅
 
-- [ ] Create `public/js/mood-analyzer.js`
-- [ ] Smooth motion values over time window (5 seconds)
-- [ ] Map smoothed motion to mood levels:
+- [x] Create `public/js/mood-analyzer.js`
+- [x] Smooth motion values over time window (5 seconds)
+- [x] Map smoothed motion to mood levels:
   - 0-10% → `chill`
   - 10-30% → `warming_up`
   - 30-60% → `energetic`
   - 60-100% → `peak`
-- [ ] Detect trend (rising/falling) for `cooling_down`
-- [ ] Send mood updates to server via WebSocket (1/second)
+- [x] Detect trend (rising/falling) for `cooling_down`
+- [x] Send mood updates to server via WebSocket (1/second)
 
-**Deliverable**: Camera motion drives mood state
+**Deliverable**: Camera motion drives mood state ✅
 
 ---
 
-### Step 4.5: Server-Side Mood Processing
+### Step 4.5: Server-Side Mood Processing ✅
 
-- [ ] Create `src/mood/camera-detector.ts`
-- [ ] Receive mood updates from browser WebSocket
-- [ ] Apply additional smoothing/hysteresis
-- [ ] Prevent rapid mood oscillation (require sustained change)
-- [ ] Feed processed mood to song selector
+- [x] Create `src/mood/camera-detector.ts`
+- [x] Receive mood updates from browser WebSocket
+- [x] Apply additional smoothing/hysteresis
+- [x] Prevent rapid mood oscillation (require sustained change)
+- [x] Feed processed mood to song selector
 
-**Deliverable**: Stable mood signal from camera input
+**Deliverable**: Stable mood signal from camera input ✅
 
 ---
 
@@ -367,7 +367,7 @@ This document outlines the step-by-step implementation plan for the AI DJ projec
 | **M1**    | 1.1 - 1.5 | Backend foundation, can serve tracks and communicate      | ✅     |
 | **M2**    | 2.1 - 2.5 | Browser plays music with crossfades, controlled by server | ✅     |
 | **M3**    | 3.1 - 3.3 | Full autonomous DJ with random mood                       | ✅     |
-| **M4**    | 4.1 - 4.5 | Camera-based mood detection working                       |        |
+| **M4**    | 4.1 - 4.5 | Camera-based mood detection working                       | ✅     |
 | **M5**    | 5.1 - 5.6 | Polished UI and robust error handling                     |        |
 | **M6**    | 6.1 - 6.3 | Tested and documented                                     |        |
 
@@ -375,9 +375,9 @@ This document outlines the step-by-step implementation plan for the AI DJ projec
 
 ## Current Progress
 
-**Current Step**: Phase 3 Complete ✅
+**Current Step**: Phase 4 Complete ✅
 
-**Next Action**: Begin Phase 4 - Camera-Based Mood Detection
+**Next Action**: Begin Phase 5 - UI & Polish
 
 ---
 

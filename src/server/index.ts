@@ -32,6 +32,7 @@ export {
   ResumeMessage,
   StopMessage,
   ErrorMessage,
+  MoodBroadcastMessage,
   isClientMessage,
   parseClientMessage,
 } from './types.js';
