@@ -1,1 +1,29 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Music files (large, not tracked in git)
 music/
+
+# Environment
+.env
+.env.local
+
+# IDE
+.idea/
+*.swp
+*.swo
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test coverage
+coverage/
