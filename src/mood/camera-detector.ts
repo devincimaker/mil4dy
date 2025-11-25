@@ -165,4 +165,3 @@ export class CameraMoodDetector extends BaseMoodDetector {
     return this.getTimeSinceLastUpdate() < this.options.timeoutMs;
   }
 }
-

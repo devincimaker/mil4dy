@@ -376,6 +376,22 @@
       color: var(--text-secondary);
     }
 
+    .up-next-reason {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+      font-style: italic;
+    }
+
+    .up-next-countdown {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: var(--accent-secondary);
+      font-variant-numeric: tabular-nums;
+      min-width: 50px;
+      text-align: right;
+    }
+
     /* Mood display */
     .mood-card {
       background: var(--bg-secondary);
@@ -409,6 +425,26 @@
     .mood-trend {
       font-size: 0.9rem;
       color: var(--text-secondary);
+    }
+
+    /* Mood change animation */
+    .mood-card.mood-changed {
+      animation: moodPulse 0.6s ease-out;
+    }
+
+    @keyframes moodPulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(0, 255, 170, 0.4);
+        border-color: var(--accent-secondary);
+      }
+      70% {
+        box-shadow: 0 0 0 12px rgba(0, 255, 170, 0);
+        border-color: var(--accent-secondary);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(0, 255, 170, 0);
+        border-color: rgba(255, 255, 255, 0.05);
+      }
     }
 
     /* Message log */
@@ -721,7 +757,9 @@
         <div class="up-next-info">
           <div class="up-next-title" id="upNextTitle">—</div>
           <div class="up-next-artist" id="upNextArtist">—</div>
+          <div class="up-next-reason" id="upNextReason"></div>
         </div>
+        <div class="up-next-countdown" id="upNextCountdown">—</div>
       </div>
     </div>
 
@@ -809,6 +847,7 @@
       mixer: null,
       currentTrack: null,
       nextTrack: null,
+      nextTrackReason: null,
       mood: null,
       isPlaying: false,
       started: false,
@@ -817,6 +856,9 @@
       motionDetector: null,
       moodAnalyzer: null,
       cameraEnabled: false,
+      // Countdown state
+      countdownInterval: null,
+      transitionTime: null,
     };
 
     const moodIcons = {
@@ -875,18 +917,48 @@
       document.getElementById('energyFill').style.width = (track.energy * 100) + '%';
     }
 
-    function updateUpNext(track) {
+    function updateUpNext(track, reason = null) {
       const upNextEl = document.getElementById('upNext');
       if (!track) {
         upNextEl.classList.remove('visible');
         state.nextTrack = null;
+        state.nextTrackReason = null;
+        stopCountdown();
         return;
       }
       
       state.nextTrack = track;
+      state.nextTrackReason = reason;
       document.getElementById('upNextTitle').textContent = track.title;
       document.getElementById('upNextArtist').textContent = track.artist;
+      document.getElementById('upNextReason').textContent = reason || '';
       upNextEl.classList.add('visible');
+    }
+
+    function startCountdown(seconds) {
+      stopCountdown();
+      state.transitionTime = Date.now() + (seconds * 1000);
+      
+      const updateCountdown = () => {
+        const remaining = Math.max(0, Math.ceil((state.transitionTime - Date.now()) / 1000));
+        document.getElementById('upNextCountdown').textContent = remaining > 0 ? `${remaining}s` : '—';
+        
+        if (remaining <= 0) {
+          stopCountdown();
+        }
+      };
+      
+      updateCountdown();
+      state.countdownInterval = setInterval(updateCountdown, 500);
+    }
+
+    function stopCountdown() {
+      if (state.countdownInterval) {
+        clearInterval(state.countdownInterval);
+        state.countdownInterval = null;
+      }
+      state.transitionTime = null;
+      document.getElementById('upNextCountdown').textContent = '—';
     }
 
     function updatePlaybackTime(currentTime, duration, remaining) {
@@ -912,6 +984,7 @@
     function updateMood(mood) {
       if (!mood) return;
       
+      const previousLevel = state.mood?.level;
       state.mood = mood;
       
       document.getElementById('moodIcon').textContent = moodIcons[mood.level] || '🎵';
@@ -921,6 +994,16 @@
                         mood.trend === 'falling' ? '↓ Falling' : '→ Stable';
       document.getElementById('moodTrend').textContent = 
         `Energy: ${(mood.energy * 100).toFixed(0)}% ${trendText}`;
+
+      // Trigger mood change animation if level changed
+      if (previousLevel && previousLevel !== mood.level) {
+        const moodCard = document.querySelector('.mood-card');
+        moodCard.classList.remove('mood-changed');
+        // Force reflow to restart animation
+        void moodCard.offsetWidth;
+        moodCard.classList.add('mood-changed');
+        log(`🌡️ Mood changed: ${previousLevel.replace('_', ' ')} → ${mood.level.replace('_', ' ')}`);
+      }
     }
 
     // Update motion stats display
@@ -1112,6 +1195,15 @@
 
       state.mixer.onError = (error) => {
         log(`❌ Audio error: ${error.message}`);
+        // Auto-skip on load failure
+        if (error.type === 'load_error' || error.message?.includes('load')) {
+          log(`⏭ Auto-skipping due to load error...`);
+          sendMessage({
+            type: 'track_ending',
+            trackId: state.currentTrack?.id,
+            remainingSeconds: 0,
+          });
+        }
       };
 
       console.log('[App] Mixer initialized');
@@ -1175,13 +1267,16 @@
             // Play immediately on active deck
             log(`🎵 Playing: "${track.title}" by ${track.artist}`);
             updateTrack(track);
+            updateUpNext(null); // Clear up next
             await state.mixer.playImmediate(track);
             updatePlayPauseButton(true);
           } else {
             // Queue for next
             log(`⏭ Queued: "${track.title}" by ${track.artist}`);
-            updateUpNext(track);
+            updateUpNext(track, message.reason);
             await state.mixer.queueNext(track);
+            // Start countdown (crossfade is ~8s, trigger is ~15s before end)
+            startCountdown(15);
           }
           
           if (message.reason) {

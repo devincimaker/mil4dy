@@ -70,7 +70,12 @@ export class AudioPlayer {
     } catch (error) {
       console.error(`[Deck] Load error:`, error);
       if (this.onError) {
-        this.onError(error);
+        this.onError({
+          type: 'load_error',
+          message: error.message || 'Failed to load audio',
+          trackId,
+          originalError: error,
+        });
       }
       return false;
     }

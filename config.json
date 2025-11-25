@@ -1,0 +1,44 @@
+{
+  "$schema": "./config.schema.json",
+  "server": {
+    "port": 3000,
+    "host": "localhost"
+  },
+  "paths": {
+    "library": "data/library.json",
+    "music": "music",
+    "public": "public"
+  },
+  "audio": {
+    "crossfadeDuration": 8,
+    "triggerTime": 15,
+    "minTrackPlayTime": 30
+  },
+  "mood": {
+    "randomDetector": {
+      "updateInterval": 2000,
+      "maxDrift": 0.08,
+      "initialEnergy": 0.35,
+      "simulateProgression": true
+    },
+    "cameraDetector": {
+      "smoothingFactor": 0.3,
+      "hysteresisTime": 3000,
+      "minEnergyChange": 0.05,
+      "timeoutMs": 10000
+    },
+    "thresholds": {
+      "chill": 0.1,
+      "warmingUp": 0.3,
+      "energetic": 0.6,
+      "peak": 0.85
+    }
+  },
+  "motionDetection": {
+    "threshold": 25,
+    "minMotionPixels": 50,
+    "backgroundAlpha": 0.05,
+    "smoothingWindow": 5000,
+    "updateInterval": 1000
+  }
+}

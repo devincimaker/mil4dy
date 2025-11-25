@@ -1,6 +1,5 @@
 To-Do
-[ ] Phase 5: UI & Polish
-[ ] Phase 6: Testing & Documentation
+[ ] Phase 6: Testing & Documentation (optional)
 
 Doing
 
@@ -10,3 +9,4 @@ Done
 [x] Phase 0-2: Project setup, backend, browser audio playback
 [x] Phase 3: DJ Controller with state machine, pause/resume, CLI args
 [x] Phase 4: Camera-based mood detection (camera.js, motion-detector.js, mood-analyzer.js)
+[x] Phase 5: UI & Polish (mood animations, countdown, config.json, error handling)

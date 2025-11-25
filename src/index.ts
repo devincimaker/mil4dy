@@ -5,7 +5,41 @@
  */
 
 import path from 'node:path';
+import { readFileSync, existsSync } from 'node:fs';
 import { DJController } from './controller/index.js';
+
+// ============================================
+// Configuration Loading
+// ============================================
+
+interface Config {
+  server: { port: number; host: string };
+  paths: { library: string; music: string; public: string };
+  audio: { crossfadeDuration: number; triggerTime: number; minTrackPlayTime: number };
+  mood: {
+    randomDetector: { updateInterval: number; maxDrift: number; initialEnergy: number; simulateProgression: boolean };
+    cameraDetector: { smoothingFactor: number; hysteresisTime: number; minEnergyChange: number; timeoutMs: number };
+    thresholds: { chill: number; warmingUp: number; energetic: number; peak: number };
+  };
+  motionDetection: { threshold: number; minMotionPixels: number; backgroundAlpha: number; smoothingWindow: number; updateInterval: number };
+}
+
+function loadConfig(): Partial<Config> {
+  const configPath = path.join(process.cwd(), 'config.json');
+  if (existsSync(configPath)) {
+    try {
+      const configText = readFileSync(configPath, 'utf-8');
+      const config = JSON.parse(configText);
+      console.log('📋 Loaded config.json');
+      return config;
+    } catch (error) {
+      console.warn('⚠️ Failed to load config.json, using defaults');
+    }
+  }
+  return {};
+}
+
+const config = loadConfig();
 
 // ============================================
 // CLI Argument Parsing
@@ -26,11 +60,15 @@ function printHelp(): void {
 Usage: npm start [options]
 
 Options:
-  --port <number>      Server port (default: 3000, env: PORT)
+  --port <number>      Server port (default: 3000, env: PORT, config: server.port)
   --library <path>     Path to library.json (default: data/library.json, env: LIBRARY_PATH)
   --music-dir <path>   Path to music files directory (default: music, env: MUSIC_DIR)
   --public-dir <path>  Path to public files directory (default: public, env: PUBLIC_DIR)
   --help               Show this help message
+
+Configuration:
+  Settings can also be specified in config.json at the project root.
+  Priority: CLI args > Environment variables > config.json > defaults
 
 Examples:
   npm start
@@ -41,11 +79,15 @@ Examples:
 }
 
 function parseArgs(args: string[]): CLIOptions {
+  // Defaults: config.json values, then env vars, then hardcoded defaults
   const options: CLIOptions = {
-    port: parseInt(process.env.PORT ?? '3000', 10),
-    library: process.env.LIBRARY_PATH ?? path.join(process.cwd(), 'data', 'library.json'),
-    musicDir: process.env.MUSIC_DIR ?? path.join(process.cwd(), 'music'),
-    publicDir: process.env.PUBLIC_DIR ?? path.join(process.cwd(), 'public'),
+    port: parseInt(process.env.PORT ?? String(config.server?.port ?? 3000), 10),
+    library: process.env.LIBRARY_PATH ?? 
+      (config.paths?.library ? path.join(process.cwd(), config.paths.library) : path.join(process.cwd(), 'data', 'library.json')),
+    musicDir: process.env.MUSIC_DIR ?? 
+      (config.paths?.music ? path.join(process.cwd(), config.paths.music) : path.join(process.cwd(), 'music')),
+    publicDir: process.env.PUBLIC_DIR ?? 
+      (config.paths?.public ? path.join(process.cwd(), config.paths.public) : path.join(process.cwd(), 'public')),
     help: false,
   };
 
@@ -107,6 +149,7 @@ const dj = new DJController({
   musicDir: options.musicDir,
   publicDir: options.publicDir,
   port: options.port,
+  minTrackPlayTime: config.audio?.minTrackPlayTime,
 });
 
 // Handle graceful shutdown
