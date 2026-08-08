@@ -1,0 +1,21 @@
+[project]
+name = "mil4dy"
+version = "0.1.0"
+description = "Turn a folder of MP3s into an analyzed, planned, offline DJ mix."
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "librosa==0.11.0",
+  "numpy>=2.0,<3.0",
+]
+
+[project.scripts]
+mil4dy = "mil4dy.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mil4dy"]
+
