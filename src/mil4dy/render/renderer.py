@@ -43,10 +43,9 @@ def render_mix(plan: MixPlan, output: Path, wav: bool = False,
         # Capture echo material before fades (last beat before the overlap ends)
         echo_src = None
         if i < n - 1 and "echo_out" in plan.transitions[i].fx:
-            k = st.n_beats - 1
-            a = int(st.beat_out_samples[k - 1] - st.offset)
-            b = int(st.beat_out_samples[k] - st.offset)
-            echo_src = st.audio[a:b].copy()
+            a = int(st.beat_out_samples[st.n_beats - 1] - st.offset)
+            b = int(st.beat_out_samples[st.n_beats] - st.offset)
+            echo_src = st.audio[a : min(b, len(st.audio))].copy()
 
         if i > 0:
             tr = plan.transitions[i - 1]
@@ -97,7 +96,7 @@ def render_mix(plan: MixPlan, output: Path, wav: bool = False,
         a = clock.beat_samples[max(start_beat - pad, 0)]
         b_idx = min(start_beat + tr.length_beats + pad, clock.n_beats - 1)
         b = clock.beat_samples[b_idx]
-        out = output.with_suffix("") .parent / (output.stem + f".transition{debug_transition}.wav")
+        out = output.parent / f"{output.stem}.transition{debug_transition}.wav"
         seg, report = master_chain(master[a:b], plan.target_lufs)
         write_wav(seg, out)
         _log(f"wrote {out} ({tr.type}, {tr.length_beats} beats) {report}")

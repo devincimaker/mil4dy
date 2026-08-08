@@ -97,6 +97,8 @@ def main(argv: list[str] | None = None) -> None:
     from .render.renderer import render_mix
 
     render_mix(plan, args.output, wav=args.wav, debug_transition=args.debug_transition)
+    if args.debug_transition is not None:
+        return
 
     plan_sidecar = args.output.with_suffix(".json")
     plan_sidecar.write_text(plan.model_dump_json(indent=2))

@@ -106,7 +106,13 @@ def analyze_library(music_dirs: list[Path], workers: int | None = None,
                               f"({rec.bpm:.1f} bpm, {rec.camelot or '?'}, "
                               f"{len(rec.segments)} segments)")
 
-    ordered = [records[p] for p in paths]
+    # Byte-identical files in different dirs share a fingerprint: keep one copy
+    seen_fp: set[str] = set()
+    ordered = []
+    for p in paths:
+        if fps[p] not in seen_fp:
+            seen_fp.add(fps[p])
+            ordered.append(records[p])
 
     # Library-wide percentile normalization of raw energies
     track_raw = [r.energy for r in ordered]

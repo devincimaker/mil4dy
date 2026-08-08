@@ -13,23 +13,37 @@ PER_TRACK_TARGET_LUFS = -16.0
 
 def plan_mix(analyses: list[TrackAnalysis], minutes: float = 30.0,
              seed: int | None = None, target_lufs: float = -10.0) -> MixPlan:
-    order = order_tracks(analyses, minutes, seed)
-    grids = [TrackGrid(rec) for rec in order]
-    n = len(order)
+    target_s = minutes * 60.0
+    candidates = order_tracks(analyses, minutes * 1.2, seed)
+    all_grids = [TrackGrid(rec) for rec in candidates]
 
-    # First pass: cue decisions per adjacent pair
-    cue_in = [0] * n
-    cue_out = [0] * n
-    pair_info = []  # (ttype, length, a_anchor, b_anchor)
-    cue_in[0] = int(grids[0].downbeat_idx[0]) if len(grids[0].downbeat_idx) else 0
-    for i in range(n - 1):
+    # Cue pass: consume ordered tracks until the actual duration hits the target
+    order: list = [candidates[0]]
+    grids: list[TrackGrid] = [all_grids[0]]
+    cue_in = [int(all_grids[0].downbeat_idx[0]) if len(all_grids[0].downbeat_idx) else 0]
+    cue_out: list[int] = []
+    pair_info: list[tuple] = []  # (ttype, length, a_anchor, b_anchor)
+    elapsed = 0.0  # seconds up to the current last track's entry
+
+    def close_last() -> int:
+        anchor, _ = mix_out_anchor(grids[-1], cue_in[-1], 8)
+        return min(anchor + 32, grids[-1].n_beats - 2)
+
+    for nxt_rec, nxt_grid in zip(candidates[1:], all_grids[1:]):
+        end_beat = close_last()
+        spb = 60.0 / order[-1].bpm
+        if elapsed + (end_beat - cue_in[-1]) * spb >= target_s * 0.97 and len(order) >= 4:
+            break
         ttype, length, a_anchor, b_anchor = decide_transition(
-            order[i], order[i + 1], grids[i], grids[i + 1], cue_in[i])
+            order[-1], nxt_rec, grids[-1], nxt_grid, cue_in[-1])
         pair_info.append((ttype, length, a_anchor, b_anchor))
-        cue_out[i] = a_anchor + length
-        cue_in[i + 1] = b_anchor
-    last_anchor, last_len = mix_out_anchor(grids[-1], cue_in[-1], 8)
-    cue_out[-1] = min(last_anchor + 32, grids[-1].n_beats - 2)
+        cue_out.append(a_anchor + length)
+        elapsed += (a_anchor + length - cue_in[-1] - length) * spb
+        order.append(nxt_rec)
+        grids.append(nxt_grid)
+        cue_in.append(b_anchor)
+    cue_out.append(close_last())
+    n = len(order)
 
     # Second pass: build PlanTracks with embedded beat slices
     tracks: list[PlanTrack] = []

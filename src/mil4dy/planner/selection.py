@@ -42,7 +42,8 @@ class _State:
 
 
 def _step_score(prev: TrackAnalysis, cand: TrackAnalysis, p: float,
-                journey_bpm: float, rng: random.Random | None) -> float | None:
+                journey_bpm: float, rng: random.Random | None,
+                recent_artists: set[str] = frozenset()) -> float | None:
     gap = abs(cand.bpm - prev.bpm) / prev.bpm
     if gap > MAX_BPM_GAP:
         return None
@@ -59,6 +60,8 @@ def _step_score(prev: TrackAnalysis, cand: TrackAnalysis, p: float,
     diversity = 0.0
     if cand.artist and cand.artist == prev.artist:
         diversity = -0.5
+    elif cand.artist and cand.artist in recent_artists:
+        diversity = -0.2
 
     score = 0.40 * e_fit + 0.20 * t_fit + 0.10 * journey + 0.20 * k + structure_bonus + diversity
     if rng is not None:
@@ -93,11 +96,12 @@ def order_tracks(tracks: list[TrackAnalysis], minutes: float,
             prev = state.order[-1]
             p = state.elapsed / target_s
             journey_bpm = state.start_bpm + JOURNEY_DRIFT * p
+            recent = {t.artist for t in state.order[-3:] if t.artist}
             scored = []
             for cand in usable:
                 if cand.path in state.used:
                     continue
-                s = _step_score(prev, cand, p, journey_bpm, rng)
+                s = _step_score(prev, cand, p, journey_bpm, rng, recent)
                 if s is not None:
                     scored.append((s, cand))
             scored.sort(key=lambda x: -x[0])

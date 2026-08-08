@@ -6,7 +6,7 @@ from ..schemas import AutomationLane, PlanTransition, TempoRamp, TrackAnalysis
 from .camelot import camelot_score
 from .cues import TrackGrid, mix_in_anchor, mix_out_anchor
 
-VOCAL_CLASH = 0.55
+VOCAL_CLASH = 0.72
 
 
 def decide_transition(a: TrackAnalysis, b: TrackAnalysis, a_grid: TrackGrid,
@@ -47,6 +47,7 @@ def decide_transition(a: TrackAnalysis, b: TrackAnalysis, a_grid: TrackGrid,
     if a_vocal > VOCAL_CLASH and b_vocal > VOCAL_CLASH:
         ttype = "quick_cut"
         length = 1
+        b_anchor, length = mix_in_anchor(b_grid, length)
     else:
         b_first_body = next((s for s in b.segments if s.label != "intro"), None)
         a_leaving = _label_at(a, a_grid.beats[min(a_anchor, a_grid.n_beats - 1)])

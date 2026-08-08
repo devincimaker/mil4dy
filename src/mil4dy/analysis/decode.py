@@ -101,7 +101,7 @@ def decode(path: Path, sample_rate: int = ANALYSIS_SAMPLE_RATE, mono: bool = Tru
         ],
         capture_output=True, check=True,
     ).stdout
-    audio = np.frombuffer(raw, dtype=np.float32)
+    audio = np.frombuffer(raw, dtype=np.float32).copy()
     if not mono:
         audio = audio.reshape(-1, 2)
     return audio
