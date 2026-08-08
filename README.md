@@ -1,85 +1,26 @@
-# AI DJ 🎧
+# mil4dy
 
-An autonomous DJ that reads the room and keeps the party going — no human intervention required.
+`mil4dy` turns a folder of MP3 files into one offline DJ mix. It analyzes the
+audio itself, caches that analysis, plans a set, and renders beat-length
+crossfades with FFmpeg.
 
-## Overview
+## Requirements
 
-AI DJ uses computer vision to detect dance floor energy and automatically selects and mixes music to match the mood. Point a camera at the dance floor, hit start, and let the AI handle the rest.
+- `uv`
+- `ffmpeg` and `ffprobe`
 
-## Features
-
-- **Mood Detection**: Analyzes camera feed to gauge dance floor energy
-- **Smart Selection**: Picks tracks that match the current vibe
-- **Smooth Transitions**: Crossfades between songs automatically
-- **Zero Touch**: Runs autonomously once started
-
-## Quick Start
+## Run it
 
 ```bash
-# Install dependencies
-npm install
-
-# Build the project
-npm run build
-
-# Start the DJ
-npm start
+uv run mil4dy /path/to/mp3s --minutes 30 --output output/mix.mp3
 ```
 
-Then open `http://localhost:3000` in your browser.
+The command creates:
 
-## Project Structure
+- `output/mix.mp3`: the rendered mix
+- `output/mix.json`: the selected tracks, cue points, and transition details
+- `.mil4dy/analysis.json`: reusable analysis cache
 
-```
-ai-dj/
-├── src/
-│   ├── index.ts          # Entry point
-│   ├── music/            # Track library management
-│   ├── mood/             # Mood detection modules
-│   ├── selection/        # Song selection logic
-│   ├── server/           # HTTP & WebSocket server
-│   └── controller/       # DJ orchestration
-├── public/               # Browser client (audio, camera, UI)
-├── data/
-│   └── library.json      # Track metadata
-├── music/                # Audio files (not in git)
-└── docs/                 # PRD & implementation plan
-```
-
-## Configuration
-
-Place your music files in the `music/` directory and ensure `data/library.json` contains metadata for each track.
-
-### Track Metadata Format
-
-```json
-{
-  "id": "unique-id",
-  "path": "music/filename.mp3",
-  "title": "Track Title",
-  "artist": "Artist Name",
-  "bpm": 128,
-  "key": "Am",
-  "energy": 0.7,
-  "duration": 245,
-  "genre": "house"
-}
-```
-
-## Development
-
-```bash
-# Run in development mode
-npm run dev
-
-# Lint code
-npm run lint
-
-# Format code
-npm run format
-```
-
-## License
-
-MIT
+The MP3 library is read-only. An interrupted or repeated run reuses completed
+analysis for files that have not changed.
 
