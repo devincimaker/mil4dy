@@ -27,3 +27,9 @@ npm-debug.log*
 
 # Test coverage
 coverage/
+.venv/
+__pycache__/
+*.pyc
+.mil4dy/
+output/
+uv.lock
