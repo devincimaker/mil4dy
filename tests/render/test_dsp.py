@@ -112,6 +112,19 @@ def test_limiter_ceiling():
     assert true_peak_db(out) <= -0.8
 
 
+def test_limiter_ceiling_first_lookahead_window():
+    # Regression (M4D-6): the sliding-min window was never seeded, so peaks in
+    # the first `lookahead` samples (~5 ms) escaped the limiter entirely.
+    audio = np.zeros((SR, 2), dtype=np.float32)
+    audio[100:110, :] = 2.0
+    audio[SR // 2 : SR // 2 + 10, :] = 2.0
+    out = limit(audio, ceiling_db=-1.0)
+    early = true_peak_db(out[: SR // 4])
+    late = true_peak_db(out[SR // 4 :])
+    assert early <= -0.8, f"peak in first lookahead window escaped: {early:.2f} dBTP"
+    assert late <= -0.8, f"late peak escaped: {late:.2f} dBTP"
+
+
 def test_tempo_delay_decays():
     audio = tone([440.0], 0.2, amp=0.8)
     tail = tempo_delay(audio, delay_samples=int(0.2 * SR))

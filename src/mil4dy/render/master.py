@@ -44,12 +44,15 @@ def _limiter_gain(required: np.ndarray, lookahead: int, release_coeff: float
     smin = np.empty(n)
     deque_idx = np.empty(n, dtype=np.int64)
     head, tail = 0, 0
+    nxt = 0  # next index to enter the window; each index is pushed exactly once
     for i in range(n):
         end = min(i + lookahead, n - 1)
-        while tail > head and required[deque_idx[tail - 1]] >= required[end]:
-            tail -= 1
-        deque_idx[tail] = end
-        tail += 1
+        while nxt <= end:
+            while tail > head and required[deque_idx[tail - 1]] >= required[nxt]:
+                tail -= 1
+            deque_idx[tail] = nxt
+            tail += 1
+            nxt += 1
         while deque_idx[head] < i:
             head += 1
         smin[i] = required[deque_idx[head]]
