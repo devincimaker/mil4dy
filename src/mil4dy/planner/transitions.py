@@ -17,15 +17,17 @@ def decide_transition(a: TrackAnalysis, b: TrackAnalysis, a_grid: TrackGrid,
     k_fit = camelot_score(a.camelot, b.camelot)
     k_conf = min(a.key_confidence, b.key_confidence)
 
-    # Base length by structure availability
-    length = 32
+    # Base length: 16 bars (64 beats); 32 bars when both sides have generous
+    # mixable structure and keys are compatible (or unreliable enough to
+    # ignore). Poor confirmed key match -> keep it to 8 bars.
+    length = 64
     if a_outro is not None and b_intro is not None:
         a_bars = (a_outro.end - a_outro.start) / (4 * 60.0 / a.bpm)
         b_bars = (b_intro.end - b_intro.start) / (4 * 60.0 / b.bpm)
-        if a_bars >= 16 and b_bars >= 16 and (k_fit >= 0.75 or k_conf < 0.4):
-            length = 64
+        if a_bars >= 12 and b_bars >= 12 and (k_fit >= 0.75 or k_conf < 0.4):
+            length = 128
     if k_fit < 0.6 and k_conf >= 0.6:
-        length = 16
+        length = 32
 
     b_anchor, length_b = mix_in_anchor(b_grid, length)
     a_anchor, length_a = mix_out_anchor(a_grid, a_cue_in, length)
@@ -37,8 +39,8 @@ def decide_transition(a: TrackAnalysis, b: TrackAnalysis, a_grid: TrackGrid,
     # Vocal clash check over the overlap windows
     a_vocal = a_grid.vocal_in_window(a_anchor, a_anchor + length)
     b_vocal = b_grid.vocal_in_window(b_anchor, b_anchor + length)
-    if a_vocal > VOCAL_CLASH and b_vocal > VOCAL_CLASH and length > 16:
-        length = 16
+    if a_vocal > VOCAL_CLASH and b_vocal > VOCAL_CLASH and length > 32:
+        length = 32
         b_anchor, length = mix_in_anchor(b_grid, length)
         a_vocal = a_grid.vocal_in_window(a_anchor, a_anchor + length)
         b_vocal = b_grid.vocal_in_window(b_anchor, b_anchor + length)
@@ -54,7 +56,9 @@ def decide_transition(a: TrackAnalysis, b: TrackAnalysis, a_grid: TrackGrid,
         if (b_first_body is not None and b_first_body.label == "drop"
                 and a_leaving in ("breakdown", "outro")):
             ttype = "breakdown_blend"
-        elif a_leaving == "drop":
+        elif a_leaving == "drop" and length <= 32:
+            # Short exit straight out of a drop: sweep it away. Longer overlaps
+            # read better as a proper blend even when they start in the drop.
             ttype = "filter_sweep"
         else:
             ttype = "long_blend_bass_swap"

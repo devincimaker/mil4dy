@@ -50,14 +50,23 @@ def mix_in_anchor(grid: TrackGrid, transition_beats: int) -> tuple[int, int]:
     """
     rec = grid.rec
     intro = next((s for s in rec.segments if s.label == "intro"), None)
-    first_body = next((s for s in rec.segments if s.label != "intro"), None)
 
-    if intro is not None and first_body is not None:
-        arrival = grid.nearest_downbeat(grid.beat_at_time(first_body.start))
-        first_db = int(grid.downbeat_idx[0]) if len(grid.downbeat_idx) else 0
-        usable = arrival - first_db
-        length = _shrink_length(transition_beats, usable)
-        return grid.nearest_downbeat(arrival - length), length
+    if intro is not None:
+        # Arrival = the first moment that must play clean: the first drop or the
+        # first vocal-heavy section. The blend may run past the intro through
+        # low-vocal verses/builds — that's what makes 16-32 bar blends possible
+        # on radio edits with short intros.
+        arrival_seg = next(
+            (s for s in rec.segments if s.label != "intro"
+             and (s.label == "drop" or s.vocal_likelihood > 0.6)),
+            next((s for s in rec.segments if s.label != "intro"), None),
+        )
+        if arrival_seg is not None:
+            arrival = grid.nearest_downbeat(grid.beat_at_time(arrival_seg.start))
+            first_db = int(grid.downbeat_idx[0]) if len(grid.downbeat_idx) else 0
+            usable = arrival - first_db
+            length = _shrink_length(transition_beats, usable)
+            return grid.nearest_downbeat(arrival - length), length
 
     # No intro: first low-vocal 8-bar window in the first quarter of the track
     limit = grid.n_beats // 4
@@ -95,12 +104,21 @@ def mix_out_anchor(grid: TrackGrid, cue_in_beat: int, transition_beats: int) -> 
 
     anchor = int(np.clip(anchor, min_out, min(max_out, last_usable - 8)))
     anchor = grid.nearest_downbeat(anchor)
-    length = _shrink_length(transition_beats, last_usable - anchor)
+    available = last_usable - anchor
+    if available < transition_beats:
+        # Outro too short for the wanted blend: start the blend earlier, inside
+        # the preceding material, if that stretch is low-vocal.
+        shift = transition_beats - available
+        earlier = grid.nearest_downbeat(max(anchor - shift, min_out))
+        if earlier < anchor and grid.vocal_in_window(earlier, anchor) < 0.6:
+            anchor = earlier
+            available = last_usable - anchor
+    length = _shrink_length(transition_beats, available)
     return anchor, length
 
 
 def _shrink_length(want: int, available: int) -> int:
-    for length in (want, 64, 32, 16, 8):
+    for length in (want, 128, 96, 64, 48, 32, 24, 16, 8):
         if length <= want and length <= available:
             return length
     return max(min(available, 4), 1)
