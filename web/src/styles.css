@@ -401,6 +401,126 @@ button {
   color: var(--muted);
 }
 
+.strip-cues {
+  position: relative;
+  height: 1.15rem;
+  margin-top: 0.05rem;
+}
+
+.cue-tick {
+  position: absolute;
+  top: 0;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  color: var(--paper);
+}
+
+.cue-tick.is-start {
+  transform: translateX(0);
+}
+
+.cue-tick.is-end {
+  transform: translateX(-100%);
+}
+
+.deck-out .cue-tick {
+  color: var(--out);
+}
+
+.deck-in .cue-tick {
+  color: var(--in);
+}
+
+.cue-readout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.55rem 1rem;
+  margin: 0.55rem 0 0;
+}
+
+.cue-readout div {
+  margin: 0;
+  min-width: 0;
+}
+
+.cue-readout dt {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.cue-readout dd {
+  margin: 0.1rem 0 0;
+  font-family: var(--mono);
+  font-size: 0.92rem;
+  letter-spacing: -0.01em;
+  color: var(--paper);
+}
+
+.deck-out .cue-readout dd {
+  color: var(--out);
+}
+
+.deck-in .cue-readout dd {
+  color: var(--in);
+}
+
+.cue-board {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.85rem 1.5rem;
+  margin: 0 0 1.25rem;
+}
+
+.cue-board div {
+  margin: 0;
+  min-width: 0;
+}
+
+.cue-board dt {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.cue-board dd {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1.1rem;
+  margin: 0.25rem 0 0;
+  font-family: var(--mono);
+  font-size: 0.92rem;
+  color: var(--paper);
+}
+
+.cue-pair {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+
+.cue-k {
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.cue-board > div:first-child .cue-pair {
+  color: var(--out);
+}
+
+.cue-board > div:last-child .cue-pair {
+  color: var(--in);
+}
+
 .verdict {
   border-top: 1px solid var(--line);
   padding-top: 1.1rem;
@@ -576,6 +696,10 @@ button {
   .swap {
     justify-self: center;
     transform: rotate(90deg);
+  }
+
+  .cue-board {
+    grid-template-columns: 1fr;
   }
 }
 

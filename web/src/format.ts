@@ -5,6 +5,18 @@ export function fmtTime(s: number): string {
   return `${m}:${sec.toString().padStart(2, "0")}`;
 }
 
+/** Whole or one-decimal seconds, e.g. `222s` / `8.4s`. */
+export function fmtSeconds(s: number): string {
+  if (!Number.isFinite(s) || s < 0) return "0s";
+  const tenths = Math.round(s * 10) / 10;
+  return Number.isInteger(tenths) ? `${tenths}s` : `${tenths.toFixed(1)}s`;
+}
+
+/** Clock + raw second: `3:42 · 222s`. */
+export function fmtStamp(s: number): string {
+  return `${fmtTime(s)} · ${fmtSeconds(s)}`;
+}
+
 export function fmtBpm(bpm: number): string {
   return Number.isInteger(bpm) ? String(bpm) : bpm.toFixed(1);
 }

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { fetchLibrary, fetchPair, renderPair, trackAudioUrl } from "./api";
 import { Player } from "./components/Player";
 import { StructureStrip, overlapHint } from "./components/StructureStrip";
-import { fmtBpm, fmtTime, prettyType } from "./format";
+import { fmtBpm, fmtStamp, fmtTime, prettyType } from "./format";
 import type { PairResponse, Track } from "./types";
 
 type Slot = "out" | "in";
@@ -248,6 +248,34 @@ export function App() {
                   <dd>{fmtTime(pair.decision.window_duration_s)}</dd>
                 </div>
               </dl>
+              <dl className="cue-board">
+                <div>
+                  <dt>outgoing</dt>
+                  <dd>
+                    <span className="cue-pair">
+                      <span className="cue-k">mix</span>
+                      {fmtStamp(pair.decision.out_start_s)}
+                    </span>
+                    <span className="cue-pair">
+                      <span className="cue-k">send</span>
+                      {fmtStamp(pair.decision.out_end_s)}
+                    </span>
+                  </dd>
+                </div>
+                <div>
+                  <dt>incoming</dt>
+                  <dd>
+                    <span className="cue-pair">
+                      <span className="cue-k">mix</span>
+                      {fmtStamp(pair.decision.in_start_s)}
+                    </span>
+                    <span className="cue-pair">
+                      <span className="cue-k">send</span>
+                      {fmtStamp(pair.decision.in_end_s)}
+                    </span>
+                  </dd>
+                </div>
+              </dl>
               <Player
                 src={blendUrl}
                 busy={renderBusy}
@@ -314,6 +342,18 @@ function Deck({
             cueStart={cue?.start}
             cueEnd={cue?.end}
           />
+          {cue && (
+            <dl className="cue-readout">
+              <div>
+                <dt>mix</dt>
+                <dd title={`${cue.start.toFixed(3)}s`}>{fmtStamp(cue.start)}</dd>
+              </div>
+              <div>
+                <dt>send</dt>
+                <dd title={`${cue.end.toFixed(3)}s`}>{fmtStamp(cue.end)}</dd>
+              </div>
+            </dl>
+          )}
           <audio className="preview" controls preload="none" src={trackAudioUrl(track.id)} />
         </>
       ) : (

@@ -1,3 +1,4 @@
+import { fmtTime } from "../format";
 import type { Decision, Track } from "../types";
 
 interface Props {
@@ -22,6 +23,9 @@ export function StructureStrip({ track, role, cueStart, cueEnd }: Props) {
       }];
 
   const hasCue = cueStart != null && cueEnd != null && cueEnd > cueStart;
+  const startPct = hasCue ? (cueStart! / dur) * 100 : 0;
+  const endPct = hasCue ? (cueEnd! / dur) * 100 : 0;
+  const compactCue = hasCue && endPct - startPct < 22;
 
   return (
     <div className={`strip strip-${role}`}>
@@ -56,6 +60,33 @@ export function StructureStrip({ track, role, cueStart, cueEnd }: Props) {
         <span>{axisMid(dur)}</span>
         <span>{axisEnd(dur)}</span>
       </div>
+      {hasCue && (
+        <div className="strip-cues">
+          {compactCue ? (
+            <span
+              className={`cue-tick ${startPct > 50 ? "is-end" : "is-start"}`}
+              style={{ left: `${startPct}%` }}
+            >
+              {fmtTime(cueStart)}–{fmtTime(cueEnd)}
+            </span>
+          ) : (
+            <>
+              <span
+                className={`cue-tick ${startPct > 62 ? "is-end" : "is-start"}`}
+                style={{ left: `${startPct}%` }}
+              >
+                mix {fmtTime(cueStart)}
+              </span>
+              <span
+                className={`cue-tick ${endPct > 38 ? "is-end" : "is-start"}`}
+                style={{ left: `${endPct}%` }}
+              >
+                send {fmtTime(cueEnd)}
+              </span>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
