@@ -16,13 +16,15 @@ dependencies = [
     "pyloudnorm>=0.1.1",
     "numba>=0.59",
     "pydantic>=2.7",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
 ]
 
 [project.optional-dependencies]
 debug = ["matplotlib>=3.8"]
 
 [dependency-groups]
-dev = ["pytest>=8"]
+dev = ["pytest>=8", "httpx>=0.27"]
 
 [project.scripts]
 mil4dy = "mil4dy.cli:main"

@@ -11,7 +11,8 @@ from pathlib import Path
 def main(argv: list[str] | None = None) -> None:
     argv = list(sys.argv[1:] if argv is None else argv)
     # Bare alias: `mil4dy DIR [...] --minutes 30 --output mix.mp3` == `mil4dy mix ...`
-    if argv and argv[0] not in ("analyze", "plan", "mix", "doctor", "-h", "--help"):
+    if argv and argv[0] not in (
+            "analyze", "plan", "mix", "lab", "doctor", "-h", "--help"):
         argv = ["mix", *argv]
 
     parser = argparse.ArgumentParser(prog="mil4dy",
@@ -43,6 +44,11 @@ def main(argv: list[str] | None = None) -> None:
     p_mix.add_argument("--debug-transition", type=int, default=None, metavar="N",
                        help="render only transition N (1-based) +/- 8 beats to WAV")
 
+    p_lab = sub.add_parser("lab", help="open the pair-lab UI (crate + two-track mix)")
+    add_common(p_lab)
+    p_lab.add_argument("--host", default="127.0.0.1")
+    p_lab.add_argument("--port", type=int, default=8765)
+
     sub.add_parser("doctor", help="check ffmpeg/rubberband/ML dependencies")
 
     args = parser.parse_args(argv)
@@ -60,6 +66,13 @@ def main(argv: list[str] | None = None) -> None:
     for d in args.music_dirs:
         if not d.is_dir():
             sys.exit(f"not a directory: {d}")
+
+    if args.command == "lab":
+        from .lab import run_lab
+
+        run_lab(args.music_dirs, host=args.host, port=args.port,
+                force=args.force, workers=args.workers)
+        return
 
     from .analysis import analyze_library
 

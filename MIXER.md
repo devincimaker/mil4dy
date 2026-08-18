@@ -8,7 +8,10 @@ uv run mil4dy analyze DIR [DIR ...]               # pre-warm the analysis cache
 uv run mil4dy plan DIR [...] --minutes 30 --json output/plan.json
 uv run mil4dy mix  DIR [...] --minutes 30 --output output/mix.mp3
 uv run mil4dy mix  ... --debug-transition 6       # one transition ±8 beats as WAV
+uv run mil4dy lab  DIR [...]                      # pair-lab UI at http://127.0.0.1:8765
 ```
+
+The lab is Vite + React in `web/`, served by FastAPI. After a frontend change: `cd web && npm run build`, then restart `lab`. For hot reload, run `npm run dev` in `web/` (proxies `/api` to :8765) alongside the lab process.
 
 System deps: `brew install ffmpeg rubberband` (rubberband ≥ 3 for the R3 engine).
 Python 3.12 via uv; first analyze run downloads beat_this model weights (~80 MB).

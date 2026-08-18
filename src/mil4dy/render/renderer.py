@@ -25,7 +25,9 @@ def _log(msg: str) -> None:
 
 
 def render_mix(plan: MixPlan, output: Path, wav: bool = False,
-               debug_transition: int | None = None) -> dict:
+               debug_transition: int | None = None,
+               end_fade_s: float | None = None,
+               encode: bool = True) -> dict:
     clock, entries = build_clock(plan)
     n = len(plan.tracks)
     total = clock.total_samples
@@ -80,9 +82,12 @@ def render_mix(plan: MixPlan, output: Path, wav: bool = False,
         del st
 
     # End-of-mix fade
-    fade_n = int(END_FADE_S * SR)
-    fade_db = np.linspace(0.0, -60.0, fade_n)
-    master[total - fade_n : total] *= db_to_amp(fade_db).astype(np.float32)[:, None]
+    fade_s = END_FADE_S if end_fade_s is None else max(end_fade_s, 0.0)
+    fade_n = int(fade_s * SR)
+    if fade_n > 0:
+        fade_n = min(fade_n, total)
+        fade_db = np.linspace(0.0, -60.0, fade_n)
+        master[total - fade_n : total] *= db_to_amp(fade_db).astype(np.float32)[:, None]
     master = master[:total]
 
     if debug_transition is not None:
@@ -106,7 +111,8 @@ def render_mix(plan: MixPlan, output: Path, wav: bool = False,
     mastered, report = master_chain(master, plan.target_lufs)
     _log(f"master: {report}")
 
-    encode_mp3(mastered, output)
-    if wav:
-        write_wav(mastered, output.with_suffix(".wav"))
+    if encode:
+        encode_mp3(mastered, output)
+    if wav or not encode:
+        write_wav(mastered, output.with_suffix(".wav") if encode else output)
     return report

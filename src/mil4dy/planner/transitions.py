@@ -52,7 +52,7 @@ def decide_transition(a: TrackAnalysis, b: TrackAnalysis, a_grid: TrackGrid,
         b_anchor, length = mix_in_anchor(b_grid, length)
     else:
         b_first_body = next((s for s in b.segments if s.label != "intro"), None)
-        a_leaving = _label_at(a, a_grid.beats[min(a_anchor, a_grid.n_beats - 1)])
+        a_leaving = label_at(a, a_grid.beats[min(a_anchor, a_grid.n_beats - 1)])
         if (b_first_body is not None and b_first_body.label == "drop"
                 and a_leaving in ("breakdown", "outro")):
             ttype = "breakdown_blend"
@@ -65,7 +65,7 @@ def decide_transition(a: TrackAnalysis, b: TrackAnalysis, a_grid: TrackGrid,
     return ttype, length, a_anchor, b_anchor
 
 
-def _label_at(rec: TrackAnalysis, t: float) -> str:
+def label_at(rec: TrackAnalysis, t: float) -> str:
     for s in rec.segments:
         if s.start <= t < s.end:
             return s.label

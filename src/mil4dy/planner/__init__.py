@@ -4,11 +4,20 @@ from __future__ import annotations
 
 from ..schemas import MixPlan, PlanTrack, TimelineEntry, TrackAnalysis
 from .cues import TrackGrid, mix_out_anchor
+from .pair import decide_pair, plan_pair
 from .selection import order_tracks
 from .transitions import decide_transition, make_transition
 
 BEAT_MARGIN = 16  # extra beats embedded around the used span for tails/pre-roll
 PER_TRACK_TARGET_LUFS = -16.0
+
+__all__ = [
+    "BEAT_MARGIN",
+    "PER_TRACK_TARGET_LUFS",
+    "decide_pair",
+    "plan_mix",
+    "plan_pair",
+]
 
 
 def plan_mix(analyses: list[TrackAnalysis], minutes: float = 30.0,
