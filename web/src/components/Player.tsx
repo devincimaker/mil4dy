@@ -7,9 +7,19 @@ interface Props {
   error: string | null;
   onHear: () => void;
   disabled: boolean;
+  mixStart?: number | null;
+  mixEnd?: number | null;
 }
 
-export function Player({ src, busy, error, onHear, disabled }: Props) {
+export function Player({
+  src,
+  busy,
+  error,
+  onHear,
+  disabled,
+  mixStart = null,
+  mixEnd = null,
+}: Props) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [t, setT] = useState(0);
@@ -75,16 +85,34 @@ export function Player({ src, busy, error, onHear, disabled }: Props) {
             {playing ? "pause" : "play"}
           </button>
           <span className="clock">{fmtTime(t)}</span>
-          <input
-            className="scrub"
-            type="range"
-            min={0}
-            max={dur || 0}
-            step={0.05}
-            value={t}
-            onChange={seek}
-            aria-label="Position"
-          />
+          <div className="scrub-rail">
+            {dur > 0 && mixStart != null && mixStart >= 0 && (
+              <span
+                className="blend-mark is-mix"
+                style={{ left: `${(mixStart / dur) * 100}%` }}
+                data-k="mix"
+                title={`mix ${fmtTime(mixStart)}`}
+              />
+            )}
+            {dur > 0 && mixEnd != null && mixEnd > 0 && (
+              <span
+                className="blend-mark is-send"
+                style={{ left: `${(mixEnd / dur) * 100}%` }}
+                data-k="send"
+                title={`send ${fmtTime(mixEnd)}`}
+              />
+            )}
+            <input
+              className="scrub"
+              type="range"
+              min={0}
+              max={dur || 0}
+              step={0.05}
+              value={t}
+              onChange={seek}
+              aria-label="Position"
+            />
+          </div>
           <span className="clock">{fmtTime(dur)}</span>
           <button type="button" className="ghost" onClick={onHear} disabled={busy}>
             {busy ? "rendering…" : "render again"}

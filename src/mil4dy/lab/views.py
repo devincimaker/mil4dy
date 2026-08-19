@@ -59,6 +59,17 @@ class DecisionView(BaseModel):
     fx: list[str]
     reasons: list[str]
     window_duration_s: float
+    window_expected_s: float
+    out_index_span_s: float
+    in_index_span_s: float
+    out_grid_ok: bool
+    in_grid_ok: bool
+    grid_warning: str | None = None
+    pulse_warning: str | None = None
+    out_pulse_shift_s: float = 0.0
+    in_pulse_shift_s: float = 0.0
+    blend_start_s: float = 0.0
+    blend_end_s: float = 0.0
 
 
 class PairResponse(BaseModel):
@@ -105,7 +116,9 @@ def track_view(rec: TrackAnalysis) -> TrackView:
     )
 
 
-def decision_view(d: PairDecision, window_duration_s: float) -> DecisionView:
+def decision_view(d: PairDecision, window_duration_s: float,
+                  blend_start_s: float = 0.0, blend_end_s: float = 0.0
+                  ) -> DecisionView:
     return DecisionView(
         type=d.type,
         length_beats=d.length_beats,
@@ -124,4 +137,15 @@ def decision_view(d: PairDecision, window_duration_s: float) -> DecisionView:
         fx=d.fx,
         reasons=d.reasons,
         window_duration_s=round(window_duration_s, 2),
+        window_expected_s=round(d.expected_span_s, 3),
+        out_index_span_s=round(d.out_index_span_s, 3),
+        in_index_span_s=round(d.in_index_span_s, 3),
+        out_grid_ok=d.out_grid_ok,
+        in_grid_ok=d.in_grid_ok,
+        grid_warning=d.grid_warning,
+        pulse_warning=d.pulse_warning,
+        out_pulse_shift_s=round(d.out_pulse_shift_s, 4),
+        in_pulse_shift_s=round(d.in_pulse_shift_s, 4),
+        blend_start_s=round(blend_start_s, 3),
+        blend_end_s=round(blend_end_s, 3),
     )

@@ -35,3 +35,6 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/mil4dy"]
+
+[tool.pytest.ini_options]
+markers = ["slow: optional audio / beat_this path, skipped in default CI"]

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import tempfile
 import webbrowser
 from contextlib import asynccontextmanager
@@ -16,7 +17,7 @@ from fastapi.staticfiles import StaticFiles
 from ..analysis import analyze_library
 from ..planner.pair import plan_pair
 from ..render.renderer import render_mix
-from ..schemas import TrackAnalysis
+from ..schemas import MixPlan, TrackAnalysis
 from .views import PairRequest, PairResponse, TrackView, decision_view, track_view
 
 WEB_DIST = Path(__file__).resolve().parents[3] / "web" / "dist"
@@ -114,15 +115,24 @@ def create_app(music_dirs: list[Path], force: bool = False,
     @app.post("/api/pair/render")
     def pair_render(body: PairRequest) -> FileResponse:
         rec_a, rec_b = state.get(body.a), state.get(body.b)
-        plan, decision = plan_pair(rec_a, rec_b)
-        key = hashlib.sha1(
-            f"{body.a}:{body.b}:{decision.type}:{decision.length_beats}:"
-            f"{decision.a_anchor}:{decision.b_anchor}".encode()
-        ).hexdigest()[:16]
-        wav = state.render_dir / f"{key}.wav"
-        if not wav.exists():
-            render_mix(plan, wav, encode=False, end_fade_s=0.4)
-        return FileResponse(wav, media_type="audio/wav", filename=f"{key}.wav")
+        try:
+            plan, decision = plan_pair(rec_a, rec_b)
+            key = hashlib.sha1(
+                f"{body.a}:{body.b}:{decision.type}:{decision.length_beats}:"
+                f"{decision.a_anchor}:{decision.b_anchor}:"
+                f"{decision.out_pulse_shift_s:.4f}:{decision.in_pulse_shift_s:.4f}".encode()
+            ).hexdigest()[:16]
+            state.render_dir.mkdir(parents=True, exist_ok=True)
+            wav = state.render_dir / f"{key}.wav"
+            if not wav.exists():
+                render_mix(plan, wav, encode=False, end_fade_s=0.4)
+            if not wav.is_file():
+                raise RuntimeError(f"render wrote nothing at {wav}")
+            return FileResponse(wav, media_type="audio/wav", filename=f"{key}.wav")
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(500, f"{type(exc).__name__}: {exc}") from exc
 
     if WEB_DIST.is_dir():
         app.mount("/", StaticFiles(directory=WEB_DIST, html=True), name="ui")
@@ -135,18 +145,52 @@ def _pair(state: LabState, a: str, b: str) -> PairResponse:
         raise HTTPException(400, "pick two different tracks")
     rec_a, rec_b = state.get(a), state.get(b)
     plan, decision = plan_pair(rec_a, rec_b)
+    blend_start, blend_end = _blend_span(plan)
     return PairResponse(
         a=track_view(rec_a),
         b=track_view(rec_b),
-        decision=decision_view(decision, plan.target_duration_s),
+        decision=decision_view(
+            decision, plan.target_duration_s, blend_start, blend_end),
     )
 
 
-def serve(app: FastAPI, host: str = "127.0.0.1", port: int = 8765) -> None:
+def _blend_span(plan: MixPlan) -> tuple[float, float]:
+    """Overlap start/end in the rendered window (after outgoing pad)."""
+    if len(plan.timeline) >= 2:
+        start = float(plan.timeline[1].mix_start_s)
+        end = float(plan.timeline[0].mix_end_s)
+        if end < start:
+            start, end = end, start
+        return start, end
+    return 0.0, float(plan.target_duration_s)
+
+
+_ENV_DIRS = "MIL4DY_LAB_DIRS"
+_ENV_FORCE = "MIL4DY_LAB_FORCE"
+_ENV_WORKERS = "MIL4DY_LAB_WORKERS"
+
+
+def app_factory() -> FastAPI:
+    """Import target for `uvicorn --reload`. Reads crate paths from the env."""
+    raw = os.environ.get(_ENV_DIRS, "")
+    dirs = [Path(p) for p in raw.split(os.pathsep) if p]
+    if not dirs:
+        raise RuntimeError(f"{_ENV_DIRS} is empty — start the lab via `mil4dy lab`")
+    force = os.environ.get(_ENV_FORCE, "") == "1"
+    workers_raw = os.environ.get(_ENV_WORKERS, "")
+    workers = int(workers_raw) if workers_raw else None
+    return create_app(dirs, force=force, workers=workers)
+
+
+def serve(app: FastAPI | None = None, host: str = "127.0.0.1", port: int = 8765,
+          *, reload: bool = False, music_dirs: list[Path] | None = None,
+          force: bool = False, workers: int | None = None) -> None:
     import uvicorn
 
     url = f"http://{host}:{port}"
     print(f"mil4dy lab → {url}", flush=True)
+    if reload:
+        print("  watching src/mil4dy (save a .py to restart)", flush=True)
     if not WEB_DIST.is_dir():
         print("  (no web/dist yet — run `npm install && npm run build` in web/ "
               "or `npm run dev` on :5173)", flush=True)
@@ -154,4 +198,28 @@ def serve(app: FastAPI, host: str = "127.0.0.1", port: int = 8765) -> None:
         webbrowser.open(url)
     except Exception:
         pass
+
+    if reload:
+        if not music_dirs:
+            raise RuntimeError("reload needs music_dirs")
+        os.environ[_ENV_DIRS] = os.pathsep.join(str(p.resolve()) for p in music_dirs)
+        os.environ[_ENV_FORCE] = "1" if force else "0"
+        if workers is not None:
+            os.environ[_ENV_WORKERS] = str(workers)
+        else:
+            os.environ.pop(_ENV_WORKERS, None)
+        watch = Path(__file__).resolve().parents[1]
+        uvicorn.run(
+            "mil4dy.lab.app:app_factory",
+            factory=True,
+            host=host,
+            port=port,
+            log_level="info",
+            reload=True,
+            reload_dirs=[str(watch)],
+        )
+        return
+
+    if app is None:
+        raise RuntimeError("serve() needs an app when reload is off")
     uvicorn.run(app, host=host, port=port, log_level="info")

@@ -17,7 +17,7 @@ from pathlib import Path
 import numpy as np
 
 from ..schemas import TrackAnalysis
-from .beats import BeatEngine, phrase_grid, robust_bpm
+from .beats import BeatEngine, phrase_grid, robust_bpm, score_intro
 from .cache import AnalysisCache
 from .decode import decode, discover_tracks, fingerprint, probe
 from .features import FrameFeatures, integrated_lufs, normalize_energies, raw_energy
@@ -38,21 +38,34 @@ def _phase_b(path: Path, fp: str, tags, ff: FrameFeatures, beat_engine: BeatEngi
     y44 = decode(path, sample_rate=44100, mono=True)
     duration = len(y44) / 44100.0
 
-    beat_times, downbeat_times, beat_conf = beat_engine.detect(y44, 44100)
+    beat_times, downbeat_times, beat_conf, intro_local, intro_ok = beat_engine.detect(y44, 44100)
     segments, novelty_bounds = segment_track(y44, 44100, ff, beat_times, downbeat_times, duration)
     phrase_starts = phrase_grid(downbeat_times, novelty_bounds)
 
     key, scale, camelot, key_conf, key_engine = detect_key(y44)
     stats = ff.span_stats(0, duration)
+    bpm = robust_bpm(beat_times)
+    intro = next((s for s in segments if s.label == "intro"), None)
+    if intro is not None:
+        # Refine the intro bound now that we have segments; still using the
+        # stored grid (already regularized). Raw intro_ok from detect wins
+        # when the detector rebuilt a uniform pulse.
+        refined_bpm, refined_ok = score_intro(beat_times, duration, bpm, intro.end)
+        if intro_local <= 0:
+            intro_local = refined_bpm
+        if intro_ok:
+            intro_ok = refined_ok
 
     return TrackAnalysis(
         path=str(path), fingerprint=fp,
         title=tags.title, artist=tags.artist, genre=tags.genre, duration=duration,
-        bpm=robust_bpm(beat_times),
+        bpm=bpm,
         beat_times=np.round(beat_times, 5).tolist(),
         downbeat_times=np.round(downbeat_times, 5).tolist(),
         phrase_starts=np.round(phrase_starts, 5).tolist(),
-        downbeat_confidence=beat_conf, beats_engine=beat_engine.name,
+        downbeat_confidence=beat_conf,
+        intro_grid_ok=intro_ok, intro_bpm=intro_local,
+        beats_engine=beat_engine.name,
         key=key, scale=scale, camelot=camelot, key_confidence=key_conf, key_engine=key_engine,
         lufs_integrated=integrated_lufs(y44, 44100),
         energy=raw_energy(stats),
@@ -96,9 +109,14 @@ def analyze_library(music_dirs: list[Path], workers: int | None = None,
                     pending.add(pool.submit(_phase_a, str(queue.pop(0))))
                 finished, pending = wait(pending, return_when=FIRST_COMPLETED)
                 for fut in finished:
-                    path_str, tags, ff = fut.result()
-                    p = Path(path_str)
-                    rec = _phase_b(p, fps[p], tags, ff, beat_engine)
+                    try:
+                        path_str, tags, ff = fut.result()
+                        p = Path(path_str)
+                        rec = _phase_b(p, fps[p], tags, ff, beat_engine)
+                    except Exception as exc:
+                        done += 1
+                        _progress(f"  [{done}/{len(todo)}] skip {exc}")
+                        continue
                     cache.put(rec)
                     records[p] = rec
                     done += 1
@@ -110,9 +128,11 @@ def analyze_library(music_dirs: list[Path], workers: int | None = None,
     seen_fp: set[str] = set()
     ordered = []
     for p in paths:
-        if fps[p] not in seen_fp:
-            seen_fp.add(fps[p])
-            ordered.append(records[p])
+        rec = records.get(p)
+        if rec is None or fps[p] in seen_fp:
+            continue
+        seen_fp.add(fps[p])
+        ordered.append(rec)
 
     # Library-wide percentile normalization of raw energies
     track_raw = [r.energy for r in ordered]

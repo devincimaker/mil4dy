@@ -6,7 +6,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-ANALYSIS_VERSION = 2
+ANALYSIS_VERSION = 4
 PLAN_VERSION = 2
 
 SegmentLabel = Literal["intro", "build", "drop", "breakdown", "verse", "outro"]
@@ -39,6 +39,8 @@ class TrackAnalysis(BaseModel):
     downbeat_times: list[float]
     phrase_starts: list[float] = Field(default_factory=list)  # 8-bar grid
     downbeat_confidence: float = 1.0
+    intro_grid_ok: bool = True
+    intro_bpm: float = 0.0
     beats_engine: str = "beat_this-1.1.0"
 
     key: str = ""

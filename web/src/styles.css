@@ -499,6 +499,19 @@ button {
   color: var(--paper);
 }
 
+.grid-warn {
+  display: block;
+  width: 100%;
+  margin: 0.35rem 0 0;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  line-height: 1.35;
+  letter-spacing: 0;
+  color: var(--danger);
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
 .cue-pair {
   display: inline-flex;
   flex-wrap: wrap;
@@ -633,7 +646,7 @@ button {
 
 .transport {
   display: grid;
-  grid-template-columns: auto auto 1fr auto auto;
+  grid-template-columns: auto auto minmax(0, 1fr) auto auto;
   gap: 0.7rem;
   align-items: center;
 }
@@ -644,9 +657,52 @@ button {
   color: var(--muted);
 }
 
+.scrub-rail {
+  position: relative;
+  min-width: 0;
+  height: 2.1rem;
+  display: flex;
+  align-items: center;
+}
+
 .scrub {
   width: 100%;
   accent-color: var(--out);
+}
+
+.blend-mark {
+  position: absolute;
+  top: 0.35rem;
+  width: 2px;
+  height: 0.85rem;
+  border-radius: 1px;
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.blend-mark.is-mix {
+  background: var(--out);
+  color: var(--out);
+}
+
+.blend-mark.is-send {
+  background: var(--in);
+  color: var(--in);
+}
+
+.blend-mark::after {
+  content: attr(data-k);
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 0.12rem;
+  font-family: var(--mono);
+  font-size: 0.55rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .banner {
@@ -701,6 +757,27 @@ button {
   .cue-board {
     grid-template-columns: 1fr;
   }
+
+  .cue-readout,
+  .cue-board,
+  .grid-warn {
+    width: 100%;
+  }
+
+  .transport {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "play rail rail"
+      "tnow rail tend"
+      "again again again";
+    row-gap: 0.35rem;
+  }
+
+  .transport .play { grid-area: play; }
+  .transport .clock:first-of-type { grid-area: tnow; }
+  .transport .scrub-rail { grid-area: rail; }
+  .transport .clock:last-of-type { grid-area: tend; justify-self: end; }
+  .transport .ghost { grid-area: again; }
 }
 
 @media (prefers-reduced-motion: reduce) {
