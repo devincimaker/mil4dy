@@ -48,6 +48,10 @@ def main(argv: list[str] | None = None) -> None:
     add_common(p_lab)
     p_lab.add_argument("--host", default="127.0.0.1")
     p_lab.add_argument("--port", type=int, default=8765)
+    p_lab.add_argument(
+        "--reload", action=argparse.BooleanOptionalAction, default=True,
+        help="restart when src/mil4dy changes (default on; --no-reload to pin)",
+    )
 
     sub.add_parser("doctor", help="check ffmpeg/rubberband/ML dependencies")
 
@@ -71,7 +75,7 @@ def main(argv: list[str] | None = None) -> None:
         from .lab import run_lab
 
         run_lab(args.music_dirs, host=args.host, port=args.port,
-                force=args.force, workers=args.workers)
+                force=args.force, workers=args.workers, reload=args.reload)
         return
 
     from .analysis import analyze_library

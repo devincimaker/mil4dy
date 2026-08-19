@@ -14,7 +14,7 @@ import { History } from "./components/History";
 import { KeepBar } from "./components/KeepBar";
 import { Player } from "./components/Player";
 import { StructureStrip, overlapHint } from "./components/StructureStrip";
-import { fmtBpm, fmtStamp, fmtTime, prettyType } from "./format";
+import { fmtBpm, fmtTime, gridWarnLine, prettyType, pulseWarnLine } from "./format";
 import type { HistoryTake, PairResponse, Track } from "./types";
 
 type Slot = "out" | "in";
@@ -425,7 +425,10 @@ export function App() {
                 onHear={() => void hear()}
                 disabled={!pair}
                 caption={listening?.caption}
+                mixStart={pair?.decision.blend_start_s}
+                mixEnd={pair?.decision.blend_end_s}
               />
+
               <KeepBar
                 canKeep={!!take}
                 favorited={!!take?.favorite}
@@ -477,12 +480,26 @@ export function App() {
                   <dd>
                     <span className="cue-pair">
                       <span className="cue-k">mix</span>
-                      {fmtStamp(pair.decision.out_start_s)}
+                      {fmtTime(pair.decision.out_start_s)}
                     </span>
                     <span className="cue-pair">
                       <span className="cue-k">send</span>
-                      {fmtStamp(pair.decision.out_end_s)}
+                      {fmtTime(pair.decision.out_end_s)}
                     </span>
+                    {pair.decision.out_grid_ok ? null : (
+                      <span className="grid-warn">
+                        {gridWarnLine(
+                          pair.decision.length_bars,
+                          pair.decision.out_index_span_s,
+                          pair.decision.window_expected_s,
+                        )}
+                      </span>
+                    )}
+                    {pulseWarnLine(pair.decision.out_pulse_shift_s) ? (
+                      <span className="grid-warn">
+                        {pulseWarnLine(pair.decision.out_pulse_shift_s)}
+                      </span>
+                    ) : null}
                   </dd>
                 </div>
                 <div>
@@ -490,12 +507,26 @@ export function App() {
                   <dd>
                     <span className="cue-pair">
                       <span className="cue-k">mix</span>
-                      {fmtStamp(pair.decision.in_start_s)}
+                      {fmtTime(pair.decision.in_start_s)}
                     </span>
                     <span className="cue-pair">
                       <span className="cue-k">send</span>
-                      {fmtStamp(pair.decision.in_end_s)}
+                      {fmtTime(pair.decision.in_end_s)}
                     </span>
+                    {pair.decision.in_grid_ok ? null : (
+                      <span className="grid-warn">
+                        {gridWarnLine(
+                          pair.decision.length_bars,
+                          pair.decision.in_index_span_s,
+                          pair.decision.window_expected_s,
+                        )}
+                      </span>
+                    )}
+                    {pulseWarnLine(pair.decision.in_pulse_shift_s) ? (
+                      <span className="grid-warn">
+                        {pulseWarnLine(pair.decision.in_pulse_shift_s)}
+                      </span>
+                    ) : null}
                   </dd>
                 </div>
               </dl>
@@ -571,16 +602,34 @@ function Deck({
             cueEnd={cue?.end}
           />
           {cue && (
-            <dl className="cue-readout">
-              <div>
-                <dt>mix</dt>
-                <dd title={`${cue.start.toFixed(3)}s`}>{fmtStamp(cue.start)}</dd>
-              </div>
-              <div>
-                <dt>send</dt>
-                <dd title={`${cue.end.toFixed(3)}s`}>{fmtStamp(cue.end)}</dd>
-              </div>
-            </dl>
+            <>
+              <dl className="cue-readout">
+                <div>
+                  <dt>mix</dt>
+                  <dd>{fmtTime(cue.start)}</dd>
+                </div>
+                <div>
+                  <dt>send</dt>
+                  <dd>{fmtTime(cue.end)}</dd>
+                </div>
+              </dl>
+              {decision && gridOff(role, decision) && (
+                <p className="grid-warn">
+                  {gridWarnLine(
+                    decision.length_bars,
+                    role === "out"
+                      ? decision.out_index_span_s
+                      : decision.in_index_span_s,
+                    decision.window_expected_s,
+                  )}
+                </p>
+              )}
+              {decision && pulseWarnLine(role === "out" ? decision.out_pulse_shift_s : decision.in_pulse_shift_s) && (
+                <p className="grid-warn">
+                  {pulseWarnLine(role === "out" ? decision.out_pulse_shift_s : decision.in_pulse_shift_s)}
+                </p>
+              )}
+            </>
           )}
           <audio className="preview" controls preload="none" src={trackAudioUrl(track.id)} />
         </>
@@ -591,6 +640,11 @@ function Deck({
       )}
     </article>
   );
+}
+
+function gridOff(role: Slot, decision?: PairResponse["decision"]): boolean {
+  if (!decision) return false;
+  return role === "out" ? !decision.out_grid_ok : !decision.in_grid_ok;
 }
 
 function energyPips(e: number): string {

@@ -5,7 +5,7 @@ export function fmtTime(s: number): string {
   return `${m}:${sec.toString().padStart(2, "0")}`;
 }
 
-/** Whole or one-decimal seconds, e.g. `222s` / `8.4s`. */
+/** One-decimal seconds for grid warnings, e.g. `23.6s` / `30.7s`. */
 export function fmtSeconds(s: number): string {
   if (!Number.isFinite(s) || s < 0) return "0s";
   const tenths = Math.round(s * 10) / 10;
@@ -15,6 +15,20 @@ export function fmtSeconds(s: number): string {
 /** Clock + raw second: `3:42 · 222s`. */
 export function fmtStamp(s: number): string {
   return `${fmtTime(s)} · ${fmtSeconds(s)}`;
+}
+
+export function gridWarnLine(
+  bars: number,
+  detectedSpan: number,
+  expectedSpan: number,
+): string {
+  return `${bars} bars · ${fmtSeconds(detectedSpan)} (expected ${fmtSeconds(expectedSpan)}) — grid looks off`;
+}
+
+export function pulseWarnLine(shiftS: number): string | null {
+  if (!Number.isFinite(shiftS) || Math.abs(shiftS) < 0.1) return null;
+  const ms = Math.round(Math.abs(shiftS) * 1000);
+  return `grid was ${ms}ms off the kick — locked the pulse`;
 }
 
 export function fmtBpm(bpm: number): string {

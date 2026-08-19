@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from ..schemas import MixPlan, PlanTrack, TimelineEntry, TrackAnalysis
 from .cues import TrackGrid, mix_out_anchor
-from .pair import decide_pair, plan_pair, plan_pair_full
+from .grid import expected_span_s
+from .pair import _slice_track, decide_pair, plan_pair, plan_pair_full
 from .selection import order_tracks
 from .transitions import decide_transition, make_transition
 
@@ -47,8 +48,11 @@ def plan_mix(analyses: list[TrackAnalysis], minutes: float = 30.0,
         ttype, length, a_anchor, b_anchor = decide_transition(
             order[-1], nxt_rec, grids[-1], nxt_grid, cue_in[-1])
         pair_info.append((ttype, length, a_anchor, b_anchor))
-        cue_out.append(a_anchor + length)
-        elapsed += (a_anchor + length - cue_in[-1] - length) * spb
+        out_end_s = grids[-1].cue_time(
+            grids[-1].time_of(a_anchor) + expected_span_s(order[-1].bpm, length),
+            phase_s=grids[-1].time_of(a_anchor))
+        cue_out.append(grids[-1].beat_at_time(out_end_s))
+        elapsed += (a_anchor - cue_in[-1]) * spb
         order.append(nxt_rec)
         grids.append(nxt_grid)
         cue_in.append(b_anchor)
@@ -59,23 +63,23 @@ def plan_mix(analyses: list[TrackAnalysis], minutes: float = 30.0,
     tracks: list[PlanTrack] = []
     slice_start: list[int] = []
     for i, (rec, grid) in enumerate(zip(order, grids)):
-        s = max(0, cue_in[i] - BEAT_MARGIN)
-        e = min(grid.n_beats - 1, cue_out[i] + BEAT_MARGIN)
+        cue_in_s = float(grid.beats[cue_in[i]])
+        cue_out_s = float(grid.beats[cue_out[i]])
+        if i < n - 1:
+            lock_s = float(grid.beats[min(pair_info[i][2], grid.n_beats - 1)])
+            lock_e = cue_out_s
+        elif i > 0:
+            lock_s = cue_in_s
+            lock_e = float(grid.beats[min(
+                cue_in[i] + pair_info[i - 1][1], grid.n_beats - 1)])
+        else:
+            lock_s, lock_e = cue_in_s, cue_out_s
+        s, pt, _ = _slice_track(
+            rec, grid, cue_in_s, cue_out_s, f"t{i + 1:02d}",
+            lock_start_s=lock_s, lock_end_s=lock_e,
+        )
         slice_start.append(s)
-        tracks.append(PlanTrack(
-            id=f"t{i + 1:02d}",
-            path=rec.path, title=rec.title, artist=rec.artist,
-            native_bpm=rec.bpm, plateau_bpm=rec.bpm,
-            key=rec.key, camelot=rec.camelot,
-            lufs_integrated=rec.lufs_integrated,
-            gain_db=PER_TRACK_TARGET_LUFS - rec.lufs_integrated,
-            cue_in_s=float(grid.beats[cue_in[i]]),
-            cue_out_s=float(grid.beats[cue_out[i]]),
-            cue_in_beat=cue_in[i] - s,
-            cue_out_beat=cue_out[i] - s,
-            beat_times=[float(b) for b in grid.beats[s : e + 1]],
-            downbeat_beats=[int(d - s) for d in grid.downbeat_idx if s <= d <= e],
-        ))
+        tracks.append(pt)
 
     transitions = []
     for i, (ttype, length, a_anchor, b_anchor) in enumerate(pair_info):

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import re
 import tempfile
 import threading
@@ -18,7 +19,7 @@ from fastapi.staticfiles import StaticFiles
 from ..analysis import analyze_library
 from ..planner.pair import PairDecision, plan_pair, plan_pair_full
 from ..render.renderer import render_mix
-from ..schemas import TrackAnalysis
+from ..schemas import MixPlan, TrackAnalysis
 from .history import HistoryRecord, HistoryStore
 from .views import (
     FavoriteRequest,
@@ -265,10 +266,12 @@ def _pair(state: LabState, a: str, b: str) -> PairResponse:
         raise HTTPException(400, "pick two different tracks")
     rec_a, rec_b = state.get(a), state.get(b)
     plan, decision = plan_pair(rec_a, rec_b)
+    blend_start, blend_end = _blend_span(plan)
     return PairResponse(
         a=track_view(rec_a),
         b=track_view(rec_b),
-        decision=decision_view(decision, plan.target_duration_s),
+        decision=decision_view(
+            decision, plan.target_duration_s, blend_start, blend_end),
     )
 
 
@@ -277,39 +280,48 @@ def _render_pair(state: LabState, a: str, b: str, *, kind: str,
     if a == b:
         raise HTTPException(400, "pick two different tracks")
     rec_a, rec_b = state.get(a), state.get(b)
-    window_plan, decision = plan_pair(rec_a, rec_b)
-    plan = window_plan if kind == "blend" else plan_pair_full(rec_a, rec_b)[0]
-    key = _decision_key(a, b, decision, kind)
-    wav = state.render_dir / f"{key}.wav"
-    fade = BLEND_FADE_S if kind == "blend" else MIX_FADE_S
-    with state._render_lock:
-        if not wav.exists():
-            render_mix(plan, wav, encode=False, end_fade_s=fade)
-        if not wav.is_file():
-            raise HTTPException(500, "render produced no file")
-    filename = _render_filename(rec_a, rec_b, kind)
-    dumped = decision_view(decision, window_plan.target_duration_s).model_dump()
-    if kind == "blend":
-        take = state.store.record_blend(
-            outgoing=identity_view(rec_a),
-            incoming=identity_view(rec_b),
-            decision=dumped,
-            blend_src=wav,
-            blend_filename=filename,
-        )
-        print(f"saved blend → {state.store.resolve(take.blend)}", flush=True)
-    else:
-        take = state.store.record_or_attach_mix(
-            take_id=take_id,
-            outgoing=identity_view(rec_a),
-            incoming=identity_view(rec_b),
-            decision=dumped,
-            mix_src=wav,
-            mix_filename=filename,
-        )
-        if take.mix:
-            print(f"saved mix → {state.store.resolve(take.mix)}", flush=True)
-    return _render_payload(state, take, kind, filename)
+    try:
+        window_plan, decision = plan_pair(rec_a, rec_b)
+        plan = window_plan if kind == "blend" else plan_pair_full(rec_a, rec_b)[0]
+        key = _decision_key(a, b, decision, kind)
+        state.render_dir.mkdir(parents=True, exist_ok=True)
+        wav = state.render_dir / f"{key}.wav"
+        fade = BLEND_FADE_S if kind == "blend" else MIX_FADE_S
+        with state._render_lock:
+            if not wav.exists():
+                render_mix(plan, wav, encode=False, end_fade_s=fade)
+            if not wav.is_file():
+                raise RuntimeError(f"render wrote nothing at {wav}")
+        filename = _render_filename(rec_a, rec_b, kind)
+        blend_start, blend_end = _blend_span(window_plan)
+        dumped = decision_view(
+            decision, window_plan.target_duration_s, blend_start, blend_end,
+        ).model_dump()
+        if kind == "blend":
+            take = state.store.record_blend(
+                outgoing=identity_view(rec_a),
+                incoming=identity_view(rec_b),
+                decision=dumped,
+                blend_src=wav,
+                blend_filename=filename,
+            )
+            print(f"saved blend → {state.store.resolve(take.blend)}", flush=True)
+        else:
+            take = state.store.record_or_attach_mix(
+                take_id=take_id,
+                outgoing=identity_view(rec_a),
+                incoming=identity_view(rec_b),
+                decision=dumped,
+                mix_src=wav,
+                mix_filename=filename,
+            )
+            if take.mix:
+                print(f"saved mix → {state.store.resolve(take.mix)}", flush=True)
+        return _render_payload(state, take, kind, filename)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(500, f"{type(exc).__name__}: {exc}") from exc
 
 
 def _render_payload(state: LabState, take: HistoryRecord, kind: str,
@@ -338,7 +350,8 @@ def _render_payload(state: LabState, take: HistoryRecord, kind: str,
 def _decision_key(a: str, b: str, decision: PairDecision, kind: str) -> str:
     raw = (
         f"{kind}:{a}:{b}:{decision.type}:{decision.length_beats}:"
-        f"{decision.a_anchor}:{decision.b_anchor}"
+        f"{decision.a_anchor}:{decision.b_anchor}:"
+        f"{decision.out_pulse_shift_s:.4f}:{decision.in_pulse_shift_s:.4f}"
     )
     return hashlib.sha1(raw.encode()).hexdigest()[:16]
 
@@ -385,11 +398,43 @@ def _serve_take_audio(state: LabState, tid: str, kind: str, download: bool) -> F
     return _audio_file(path, name or f"{tid}-{kind}.wav", download=download)
 
 
-def serve(app: FastAPI, host: str = "127.0.0.1", port: int = 8765) -> None:
+def _blend_span(plan: MixPlan) -> tuple[float, float]:
+    """Overlap start/end in the rendered window (after outgoing pad)."""
+    if len(plan.timeline) >= 2:
+        start = float(plan.timeline[1].mix_start_s)
+        end = float(plan.timeline[0].mix_end_s)
+        if end < start:
+            start, end = end, start
+        return start, end
+    return 0.0, float(plan.target_duration_s)
+
+
+_ENV_DIRS = "MIL4DY_LAB_DIRS"
+_ENV_FORCE = "MIL4DY_LAB_FORCE"
+_ENV_WORKERS = "MIL4DY_LAB_WORKERS"
+
+
+def app_factory() -> FastAPI:
+    """Import target for `uvicorn --reload`. Reads crate paths from the env."""
+    raw = os.environ.get(_ENV_DIRS, "")
+    dirs = [Path(p) for p in raw.split(os.pathsep) if p]
+    if not dirs:
+        raise RuntimeError(f"{_ENV_DIRS} is empty — start the lab via `mil4dy lab`")
+    force = os.environ.get(_ENV_FORCE, "") == "1"
+    workers_raw = os.environ.get(_ENV_WORKERS, "")
+    workers = int(workers_raw) if workers_raw else None
+    return create_app(dirs, force=force, workers=workers)
+
+
+def serve(app: FastAPI | None = None, host: str = "127.0.0.1", port: int = 8765,
+          *, reload: bool = False, music_dirs: list[Path] | None = None,
+          force: bool = False, workers: int | None = None) -> None:
     import uvicorn
 
     url = f"http://{host}:{port}"
     print(f"mil4dy lab → {url}", flush=True)
+    if reload:
+        print("  watching src/mil4dy (save a .py to restart)", flush=True)
     if not WEB_DIST.is_dir():
         print("  (no web/dist yet — run `npm install && npm run build` in web/ "
               "or `npm run dev` on :5173)", flush=True)
@@ -397,4 +442,28 @@ def serve(app: FastAPI, host: str = "127.0.0.1", port: int = 8765) -> None:
         webbrowser.open(url)
     except Exception:
         pass
+
+    if reload:
+        if not music_dirs:
+            raise RuntimeError("reload needs music_dirs")
+        os.environ[_ENV_DIRS] = os.pathsep.join(str(p.resolve()) for p in music_dirs)
+        os.environ[_ENV_FORCE] = "1" if force else "0"
+        if workers is not None:
+            os.environ[_ENV_WORKERS] = str(workers)
+        else:
+            os.environ.pop(_ENV_WORKERS, None)
+        watch = Path(__file__).resolve().parents[1]
+        uvicorn.run(
+            "mil4dy.lab.app:app_factory",
+            factory=True,
+            host=host,
+            port=port,
+            log_level="info",
+            reload=True,
+            reload_dirs=[str(watch)],
+        )
+        return
+
+    if app is None:
+        raise RuntimeError("serve() needs an app when reload is off")
     uvicorn.run(app, host=host, port=port, log_level="info")

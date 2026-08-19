@@ -11,14 +11,14 @@ uv run mil4dy mix  ... --debug-transition 6       # one transition ±8 beats as 
 uv run mil4dy lab  DIR [...]                      # pair-lab UI at http://127.0.0.1:8765
 ```
 
-The lab is Vite + React in `web/`, served by FastAPI. After a frontend change: `cd web && npm run build`, then restart `lab`. For hot reload, run `npm run dev` in `web/` (proxies `/api` to :8765) alongside the lab process.
+The lab is Vite + React in `web/`, served by FastAPI. `lab` watches `src/mil4dy` and restarts on save (`--no-reload` to pin). After a frontend change: `cd web && npm run build` and refresh. For UI hot reload, run `npm run dev` in `web/` (proxies `/api` to :8765) and open :5173.
 
 System deps: `brew install ffmpeg rubberband` (rubberband ≥ 3 for the R3 engine).
 Python 3.12 via uv; first analyze run downloads beat_this model weights (~80 MB).
 
 ## How it works
 
-1. **Analysis** (cached per content fingerprint in `<first_dir>/.mil4dy/cache/v2/`):
+1. **Analysis** (cached per content fingerprint in `<first_dir>/.mil4dy/cache/v4/`; older v2/v3 grids are pulse-fitted on read):
    beat_this beats + downbeats, essentia EDMA key → Camelot code, SSM/Foote
    structure segmentation labeled intro/build/drop/breakdown/verse/outro,
    LUFS, per-segment energy + vocal likelihood, per-bar bass profile.

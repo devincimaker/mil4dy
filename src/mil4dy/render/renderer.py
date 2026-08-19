@@ -21,7 +21,10 @@ END_FADE_S = 6.0
 
 
 def _log(msg: str) -> None:
-    print(msg, file=sys.stderr, flush=True)
+    try:
+        print(msg, file=sys.stderr, flush=True)
+    except BrokenPipeError:
+        pass
 
 
 def render_mix(plan: MixPlan, output: Path, wav: bool = False,

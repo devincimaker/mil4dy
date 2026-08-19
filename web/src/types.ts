@@ -55,6 +55,17 @@ export interface Decision {
   fx: string[];
   reasons: string[];
   window_duration_s: number;
+  window_expected_s: number;
+  out_index_span_s: number;
+  in_index_span_s: number;
+  out_grid_ok: boolean;
+  in_grid_ok: boolean;
+  grid_warning: string | null;
+  pulse_warning: string | null;
+  out_pulse_shift_s: number;
+  in_pulse_shift_s: number;
+  blend_start_s: number;
+  blend_end_s: number;
 }
 
 export interface PairResponse {

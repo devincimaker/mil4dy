@@ -38,3 +38,4 @@ packages = ["src/mil4dy"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
+markers = ["slow: optional audio / beat_this path, skipped in default CI"]
