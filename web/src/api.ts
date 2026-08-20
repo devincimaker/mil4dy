@@ -1,4 +1,4 @@
-import type { PairResponse, Track } from "./types";
+import type { HistoryTake, PairResponse, RenderMeta, Track } from "./types";
 
 async function json<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -23,26 +23,63 @@ export function fetchPair(a: string, b: string): Promise<PairResponse> {
   return fetch(`/api/pair?${q}`).then((r) => json<PairResponse>(r));
 }
 
-export async function renderPair(a: string, b: string): Promise<string> {
-  const res = await fetch("/api/pair/render", {
+export function renderPair(a: string, b: string): Promise<RenderMeta> {
+  return fetch("/api/pair/render", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ a, b }),
-  });
-  if (!res.ok) {
-    let detail = res.statusText;
-    try {
-      const body = (await res.json()) as { detail?: string };
-      if (body.detail) detail = body.detail;
-    } catch {
-      /* ignore */
+  }).then((r) => json<RenderMeta>(r));
+}
+
+export function renderMix(a: string, b: string, takeId?: string | null): Promise<RenderMeta> {
+  return fetch("/api/pair/mix", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ a, b, take_id: takeId ?? null }),
+  }).then((r) => json<RenderMeta>(r));
+}
+
+export function fetchHistory(): Promise<HistoryTake[]> {
+  return fetch("/api/history").then((r) => json<HistoryTake[]>(r));
+}
+
+export function fetchFavorites(): Promise<HistoryTake[]> {
+  return fetch("/api/favorites").then((r) => json<HistoryTake[]>(r));
+}
+
+export function setFavorite(takeId: string, favorite: boolean): Promise<HistoryTake> {
+  return fetch("/api/favorites", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ take_id: takeId, favorite }),
+  }).then((r) => json<HistoryTake>(r));
+}
+
+export function deleteTake(id: string): Promise<void> {
+  return fetch(`/api/history/${id}`, { method: "DELETE" }).then(async (r) => {
+    if (!r.ok) {
+      let detail = r.statusText;
+      try {
+        const body = (await r.json()) as { detail?: string };
+        if (body.detail) detail = body.detail;
+      } catch {
+        /* ignore */
+      }
+      throw new Error(detail);
     }
-    throw new Error(detail);
-  }
-  const blob = await res.blob();
-  return URL.createObjectURL(blob);
+  });
 }
 
 export function trackAudioUrl(id: string): string {
   return `/api/tracks/${id}/audio`;
+}
+
+export function triggerDownload(url: string, filename: string): void {
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
 }

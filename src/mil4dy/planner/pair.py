@@ -96,7 +96,27 @@ def plan_pair(a: TrackAnalysis, b: TrackAnalysis, pad_beats: int = WINDOW_PAD_BE
         min(b_grid.n_beats - 2, decision.b_anchor + decision.length_beats + pad_beats))
     if b_out <= b_in:
         b_out = min(b_grid.n_beats - 2, b_in + max(decision.length_beats, 8))
+    return _plan_window(a, b, a_grid, b_grid, decision, a_in, a_out, b_in, b_out), decision
 
+
+def plan_pair_full(a: TrackAnalysis, b: TrackAnalysis) -> tuple[MixPlan, PairDecision]:
+    """Two-song mix: outgoing from the start through the send, incoming from mix-in to the end."""
+    decision = decide_pair(a, b)
+    a_grid, b_grid = TrackGrid(a), TrackGrid(b)
+
+    a_in = 0
+    a_out = min(a_grid.n_beats - 2, decision.a_anchor + decision.length_beats)
+    if a_out <= a_in:
+        a_out = min(a_grid.n_beats - 2, a_in + max(decision.length_beats, 8))
+    b_in = decision.b_anchor
+    b_out = max(b_in + 1, b_grid.n_beats - 2)
+    return _plan_window(a, b, a_grid, b_grid, decision, a_in, a_out, b_in, b_out), decision
+
+
+def _plan_window(
+    a: TrackAnalysis, b: TrackAnalysis, a_grid: TrackGrid, b_grid: TrackGrid,
+    decision: PairDecision, a_in: int, a_out: int, b_in: int, b_out: int,
+) -> MixPlan:
     a_slice, ta = _slice_track(a, a_grid, a_in, a_out, "t01")
     b_slice, tb = _slice_track(b, b_grid, b_in, b_out, "t02")
 
@@ -121,7 +141,7 @@ def plan_pair(a: TrackAnalysis, b: TrackAnalysis, pad_beats: int = WINDOW_PAD_BE
                           mix_end_s=round(a_body_s - overlap_s
                                           + (b_out - b_in) * (60.0 / max(b.bpm, 1.0)), 2)),
         ],
-    ), decision
+    )
 
 
 def _slice_track(rec: TrackAnalysis, grid: TrackGrid, cue_in: int, cue_out: int,

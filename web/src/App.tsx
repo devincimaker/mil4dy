@@ -1,11 +1,38 @@
-import { useEffect, useMemo, useState } from "react";
-import { fetchLibrary, fetchPair, renderPair, trackAudioUrl } from "./api";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  deleteTake,
+  fetchHistory,
+  fetchLibrary,
+  fetchPair,
+  renderMix,
+  renderPair,
+  setFavorite,
+  trackAudioUrl,
+  triggerDownload,
+} from "./api";
+import { History } from "./components/History";
+import { KeepBar } from "./components/KeepBar";
 import { Player } from "./components/Player";
 import { StructureStrip, overlapHint } from "./components/StructureStrip";
 import { fmtBpm, fmtStamp, fmtTime, prettyType } from "./format";
-import type { PairResponse, Track } from "./types";
+import type { HistoryTake, PairResponse, Track } from "./types";
 
 type Slot = "out" | "in";
+
+interface Take {
+  id: string;
+  favorite: boolean;
+  blendUrl: string;
+  blendFilename: string;
+  mixUrl: string | null;
+  mixFilename: string | null;
+}
+
+interface Listening {
+  src: string;
+  takeId: string | null;
+  caption: string | null;
+}
 
 export function App() {
   const [tracks, setTracks] = useState<Track[]>([]);
@@ -17,23 +44,49 @@ export function App() {
   const [pair, setPair] = useState<PairResponse | null>(null);
   const [pairError, setPairError] = useState<string | null>(null);
   const [pairBusy, setPairBusy] = useState(false);
-  const [blendUrl, setBlendUrl] = useState<string | null>(null);
+  const [take, setTake] = useState<Take | null>(null);
+  const [listening, setListening] = useState<Listening | null>(null);
   const [renderBusy, setRenderBusy] = useState(false);
   const [renderError, setRenderError] = useState<string | null>(null);
+  const [history, setHistory] = useState<HistoryTake[]>([]);
+  const [keepError, setKeepError] = useState<string | null>(null);
+  const [mixBusy, setMixBusy] = useState(false);
+  const [mixElapsed, setMixElapsed] = useState(0);
+  const fromHistoryRef = useRef(false);
+  const takeRef = useRef<Take | null>(null);
+  takeRef.current = take;
 
   useEffect(() => {
     fetchLibrary()
       .then(setTracks)
       .catch((e: Error) => setLoadError(e.message));
+    fetchHistory()
+      .then(setHistory)
+      .catch(() => setHistory([]));
   }, []);
 
   useEffect(() => {
-    setBlendUrl((prev) => {
-      if (prev) URL.revokeObjectURL(prev);
-      return null;
-    });
+    if (fromHistoryRef.current) {
+      fromHistoryRef.current = false;
+      return;
+    }
+    setTake(null);
+    setListening(null);
     setRenderError(null);
+    setKeepError(null);
   }, [outId, inId]);
+
+  useEffect(() => {
+    if (!mixBusy) {
+      setMixElapsed(0);
+      return;
+    }
+    const started = Date.now();
+    const id = window.setInterval(() => {
+      setMixElapsed(Math.floor((Date.now() - started) / 1000));
+    }, 500);
+    return () => window.clearInterval(id);
+  }, [mixBusy]);
 
   useEffect(() => {
     if (!outId || !inId || outId === inId) {
@@ -92,16 +145,29 @@ export function App() {
     }
   };
 
+  const refreshHistory = () =>
+    fetchHistory()
+      .then(setHistory)
+      .catch((e: Error) => setKeepError(e.message));
+
   const hear = async () => {
     if (!outId || !inId) return;
     setRenderBusy(true);
     setRenderError(null);
+    setKeepError(null);
     try {
-      const url = await renderPair(outId, inId);
-      setBlendUrl((prev) => {
-        if (prev) URL.revokeObjectURL(prev);
-        return url;
-      });
+      const meta = await renderPair(outId, inId);
+      const next: Take = {
+        id: meta.take_id,
+        favorite: meta.favorite,
+        blendUrl: meta.url,
+        blendFilename: meta.filename,
+        mixUrl: null,
+        mixFilename: null,
+      };
+      setTake(next);
+      setListening({ src: meta.url, takeId: meta.take_id, caption: null });
+      await refreshHistory();
     } catch (e) {
       setRenderError(e instanceof Error ? e.message : "render failed");
     } finally {
@@ -109,10 +175,136 @@ export function App() {
     }
   };
 
+  const favoriteTake = async () => {
+    const current = takeRef.current;
+    if (!current) return;
+    setKeepError(null);
+    try {
+      const rec = await setFavorite(current.id, true);
+      setTake({ ...current, favorite: rec.favorite });
+      await refreshHistory();
+    } catch (e) {
+      setKeepError(e instanceof Error ? e.message : "could not favorite");
+    }
+  };
+
+  const unfavoriteTake = async () => {
+    const current = takeRef.current;
+    if (!current) return;
+    setKeepError(null);
+    try {
+      const rec = await setFavorite(current.id, false);
+      setTake({ ...current, favorite: rec.favorite });
+      await refreshHistory();
+    } catch (e) {
+      setKeepError(e instanceof Error ? e.message : "could not unfavorite");
+    }
+  };
+
+  const downloadBlend = () => {
+    const current = takeRef.current;
+    if (!current) return;
+    triggerDownload(
+      current.blendUrl.includes("?") ? current.blendUrl : `${current.blendUrl}?download=1`,
+      current.blendFilename,
+    );
+  };
+
+  const downloadMix = async () => {
+    if (!outId || !inId) return;
+    setKeepError(null);
+    const current = takeRef.current;
+    if (current?.mixUrl && current.mixFilename) {
+      triggerDownload(
+        current.mixUrl.includes("?") ? current.mixUrl : `${current.mixUrl}?download=1`,
+        current.mixFilename,
+      );
+      return;
+    }
+    setMixBusy(true);
+    try {
+      const meta = await renderMix(outId, inId, current?.id);
+      const latest = takeRef.current;
+      if (latest) {
+        setTake({
+          ...latest,
+          id: meta.take_id,
+          mixUrl: meta.url,
+          mixFilename: meta.filename,
+        });
+      }
+      await refreshHistory();
+      triggerDownload(meta.download_url, meta.filename);
+    } catch (e) {
+      setKeepError(e instanceof Error ? e.message : "mix render failed");
+    } finally {
+      setMixBusy(false);
+    }
+  };
+
+  const playTake = (item: HistoryTake) => {
+    fromHistoryRef.current = true;
+    setOutId(item.outgoing.id);
+    setInId(item.incoming.id);
+    const src = item.blend_url ?? item.mix_url;
+    setTake({
+      id: item.id,
+      favorite: item.favorite,
+      blendUrl: item.blend_url ?? item.mix_url ?? "",
+      blendFilename: item.blend_filename ?? item.mix_filename ?? item.id,
+      mixUrl: item.mix_url,
+      mixFilename: item.mix_filename,
+    });
+    setListening({
+      src: src ?? "",
+      takeId: item.id,
+      caption: `playing saved file · ${item.blend_filename ?? item.mix_filename ?? item.id}`,
+    });
+    setRenderError(null);
+    setKeepError(null);
+  };
+
+  const toggleFavorite = async (item: HistoryTake) => {
+    setKeepError(null);
+    try {
+      const rec = await setFavorite(item.id, !item.favorite);
+      if (takeRef.current?.id === rec.id) {
+        setTake({ ...takeRef.current, favorite: rec.favorite });
+      }
+      await refreshHistory();
+    } catch (e) {
+      setKeepError(e instanceof Error ? e.message : "could not update favorite");
+    }
+  };
+
+  const removeTake = async (item: HistoryTake) => {
+    setKeepError(null);
+    try {
+      await deleteTake(item.id);
+      if (takeRef.current?.id === item.id) setTake(null);
+      if (listening?.takeId === item.id) setListening(null);
+      await refreshHistory();
+    } catch (e) {
+      setKeepError(e instanceof Error ? e.message : "could not remove");
+    }
+  };
+
+  const downloadHistoryBlend = (item: HistoryTake) => {
+    if (!item.blend_download_url || !item.blend_filename) return;
+    triggerDownload(item.blend_download_url, item.blend_filename);
+  };
+
+  const downloadHistoryMix = (item: HistoryTake) => {
+    if (!item.mix_download_url || !item.mix_filename) return;
+    triggerDownload(item.mix_download_url, item.mix_filename);
+  };
+
   const swap = () => {
     setOutId(inId);
     setInId(outId);
   };
+
+  const favoriteCount = history.filter((t) => t.favorite).length;
 
   return (
     <div className="shell">
@@ -122,10 +314,14 @@ export function App() {
           <span className="edition">pair lab</span>
         </div>
         <p className="lede">
-          Two tracks. The planner proposes where they meet. You listen.
+          Two tracks. Every Hear is saved. Star the ones that work.
         </p>
         <div className="mast-meta">
           {tracks.length ? `${tracks.length} in the crate` : "warming the crate…"}
+          {history.length ? ` · ${history.length} generated` : ""}
+          {favoriteCount
+            ? ` · ${favoriteCount} favorite${favoriteCount === 1 ? "" : "s"}`
+            : ""}
         </div>
       </header>
 
@@ -202,11 +398,14 @@ export function App() {
               Pick an outgoing track from the crate, then an incoming one.
               The next click fills the deck that’s highlighted.
             </p>
-          ) : pairBusy ? (
+          ) : pairBusy && !pair && !listening ? (
             <p className="empty">reading structure…</p>
-          ) : pairError ? (
+          ) : pairError && !pair ? (
             <p className="banner err">{pairError}</p>
-          ) : pair ? (
+          ) : pair || listening ? (
+            <>
+              {pairBusy && !pair && <p className="empty">reading structure…</p>}
+              {pair ? (
             <>
               <div className="verdict-head">
                 <h2>{prettyType(pair.decision.type)}</h2>
@@ -217,6 +416,30 @@ export function App() {
                     : ""}
                 </p>
               </div>
+              </>
+              ) : null}
+              <Player
+                src={listening?.src ?? null}
+                busy={renderBusy}
+                error={renderError}
+                onHear={() => void hear()}
+                disabled={!pair}
+                caption={listening?.caption}
+              />
+              <KeepBar
+                canKeep={!!take}
+                favorited={!!take?.favorite}
+                mixBusy={mixBusy}
+                mixElapsed={mixElapsed}
+                busy={renderBusy}
+                onFavorite={() => void favoriteTake()}
+                onUnfavorite={() => void unfavoriteTake()}
+                onDownloadBlend={downloadBlend}
+                onDownloadMix={() => void downloadMix()}
+              />
+              {keepError && <p className="player-error">{keepError}</p>}
+              {pair ? (
+              <>
               <ul className="reasons">
                 {pair.decision.reasons.map((r) => (
                   <li key={r}>{r}</li>
@@ -276,17 +499,22 @@ export function App() {
                   </dd>
                 </div>
               </dl>
-              <Player
-                src={blendUrl}
-                busy={renderBusy}
-                error={renderError}
-                onHear={() => void hear()}
-                disabled={!pair}
-              />
+              </>
+              ) : null}
             </>
           ) : null}
         </section>
       </main>
+
+      <History
+        takes={history}
+        playingId={listening?.takeId ?? null}
+        onPlay={playTake}
+        onToggleFavorite={(item) => void toggleFavorite(item)}
+        onDownloadBlend={downloadHistoryBlend}
+        onDownloadMix={downloadHistoryMix}
+        onRemove={(item) => void removeTake(item)}
+      />
     </div>
   );
 }

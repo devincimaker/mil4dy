@@ -62,3 +62,44 @@ export interface PairResponse {
   b: Track;
   decision: Decision;
 }
+
+export interface TrackIdentity {
+  id: string;
+  artist: string;
+  title: string;
+}
+
+export interface RenderMeta {
+  id: string;
+  kind: "blend" | "mix";
+  filename: string;
+  url: string;
+  download_url: string;
+  outgoing: TrackIdentity;
+  incoming: TrackIdentity;
+  decision: Decision;
+  take_id: string;
+  favorite: boolean;
+  blend_path: string | null;
+  mix_path: string | null;
+}
+
+export interface HistoryTake {
+  id: string;
+  created_at: string;
+  outgoing: TrackIdentity;
+  incoming: TrackIdentity;
+  decision: Decision;
+  favorite: boolean;
+  blend_path: string | null;
+  mix_path: string | null;
+  blend_filename: string | null;
+  mix_filename: string | null;
+  blend_url: string | null;
+  mix_url: string | null;
+  blend_download_url: string | null;
+  mix_download_url: string | null;
+}
+
+/** @deprecated use HistoryTake */
+export type Favorite = HistoryTake;
