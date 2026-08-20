@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from ..schemas import MixPlan, PlanTrack, TimelineEntry, TrackAnalysis
 from .cues import TrackGrid, mix_out_anchor
-from .pair import decide_pair, plan_pair
+from .pair import decide_pair, plan_pair, plan_pair_full
 from .selection import order_tracks
 from .transitions import decide_transition, make_transition
 
@@ -17,6 +17,7 @@ __all__ = [
     "decide_pair",
     "plan_mix",
     "plan_pair",
+    "plan_pair_full",
 ]
 
 

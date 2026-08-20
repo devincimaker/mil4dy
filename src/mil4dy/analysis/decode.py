@@ -21,6 +21,8 @@ def discover_tracks(music_dirs: list[Path]) -> list[Path]:
     seen: set[Path] = set()
     for d in music_dirs:
         for p in sorted(d.rglob("*")):
+            if any(part == ".mil4dy" for part in p.parts):
+                continue
             if p.suffix.lower() in AUDIO_EXTENSIONS and p.is_file():
                 rp = p.resolve()
                 if rp not in seen:

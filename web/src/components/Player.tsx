@@ -7,9 +7,10 @@ interface Props {
   error: string | null;
   onHear: () => void;
   disabled: boolean;
+  caption?: string | null;
 }
 
-export function Player({ src, busy, error, onHear, disabled }: Props) {
+export function Player({ src, busy, error, onHear, disabled, caption }: Props) {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [t, setT] = useState(0);
@@ -91,6 +92,7 @@ export function Player({ src, busy, error, onHear, disabled }: Props) {
           </button>
         </div>
       )}
+      {caption && <p className="player-caption">{caption}</p>}
       {error && <p className="player-error">{error}</p>}
     </div>
   );

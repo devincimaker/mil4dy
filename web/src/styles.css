@@ -64,9 +64,10 @@ button {
   display: grid;
   grid-template-areas:
     "mast mast"
-    "crate stage";
+    "crate stage"
+    "kept kept";
   grid-template-columns: 22rem minmax(0, 1fr);
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
   width: 100%;
   height: 100%;
   min-height: 100dvh;
@@ -110,6 +111,7 @@ button {
   max-width: 34rem;
   color: var(--muted);
   font-size: 1rem;
+  overflow-wrap: anywhere;
 }
 
 .mast-meta {
@@ -405,6 +407,7 @@ button {
   position: relative;
   height: 1.15rem;
   margin-top: 0.05rem;
+  overflow: hidden;
 }
 
 .cue-tick {
@@ -599,6 +602,256 @@ button {
   max-width: 44rem;
 }
 
+.player-caption {
+  margin: 0.45rem 0 0;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.keep-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+  margin: 0.85rem 0 0.35rem;
+  max-width: 44rem;
+}
+
+.keep-btn {
+  min-height: 2.75rem;
+  min-width: 2.75rem;
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--line);
+  background: var(--bg-2);
+}
+
+.keep-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.keep-btn.is-on {
+  border-color: var(--out);
+  background: oklch(0.74 0.13 58 / 0.16);
+}
+
+.keep-mix {
+  border-color: var(--in-dim);
+}
+
+.mix-progress {
+  flex: 1 1 8rem;
+  min-width: 8rem;
+  height: 0.45rem;
+  accent-color: var(--in);
+}
+
+.kept {
+  grid-area: kept;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  max-height: 22vh;
+  border-top: 1px solid var(--line);
+  background: oklch(0.18 0.016 72);
+}
+
+.kept-filter {
+  display: flex;
+  gap: 0.35rem;
+  padding: 0 1.75rem 0.55rem;
+}
+
+.kept-filter button {
+  min-height: 2.25rem;
+  padding: 0.3rem 0.8rem;
+  border: 1px solid var(--line);
+  background: transparent;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.kept-filter button.is-on {
+  border-color: var(--out);
+  background: oklch(0.74 0.13 58 / 0.16);
+}
+
+.kept-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 1rem;
+  padding: 0.85rem 1.75rem 0.55rem;
+}
+
+.kept-head h2 {
+  margin: 0;
+  font-family: var(--display);
+  font-size: 1.35rem;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+
+.kept-head p {
+  margin: 0.15rem 0 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.kept-count {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.kept-empty {
+  margin: 0 1.75rem 1.1rem;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.kept-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 1.75rem 1.1rem;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.kept-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.65rem 0.75rem;
+  align-items: center;
+  padding: 0.45rem 0.55rem 0.45rem 0.45rem;
+  border-left: 3px solid var(--line);
+  background: oklch(1 0 0 / 0.02);
+}
+
+.star {
+  min-height: 2.75rem;
+  min-width: 2.75rem;
+  border: 1px solid var(--line);
+  background: transparent;
+  font-size: 1.1rem;
+  line-height: 1;
+  color: var(--muted);
+}
+
+.star.is-on {
+  border-color: var(--out);
+  color: var(--out);
+  background: oklch(0.74 0.13 58 / 0.16);
+}
+
+.kept-latest {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--out);
+  align-self: center;
+}
+
+.kept-item.is-playing {
+  border-left-color: var(--out);
+  background: oklch(0.74 0.13 58 / 0.08);
+}
+
+.kept-item.is-kept {
+  border-left-color: var(--out);
+}
+
+.kept-main {
+  min-width: 0;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  padding: 0.2rem 0;
+}
+
+.kept-pair {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.65rem;
+}
+
+.kept-leg {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.kept-leg em {
+  font-style: normal;
+  font-size: 0.68rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.kept-leg.is-out span {
+  color: var(--out);
+}
+
+.kept-leg.is-in span {
+  color: var(--in);
+}
+
+.kept-arrow {
+  color: var(--muted);
+  align-self: center;
+}
+
+.kept-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.85rem;
+  margin-top: 0.25rem;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.kept-file {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 22rem;
+}
+
+.kept-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.kept-actions button {
+  min-height: 2.75rem;
+  min-width: 2.75rem;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid var(--line);
+  background: transparent;
+}
+
+.kept-actions button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.kept-actions .danger {
+  color: var(--danger);
+}
+
 .hear,
 .play,
 .ghost {
@@ -612,6 +865,7 @@ button {
   background: var(--out);
   color: oklch(0.18 0.03 70);
   font-weight: 600;
+  min-height: 2.75rem;
   padding: 0.7rem 1.2rem;
 }
 
@@ -674,14 +928,19 @@ button {
     grid-template-areas:
       "mast"
       "crate"
-      "stage";
+      "stage"
+      "kept";
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto minmax(10rem, 32vh) minmax(0, 1fr);
+    grid-template-rows: auto minmax(7rem, 20vh) minmax(16rem, 1fr) minmax(7rem, 22vh);
   }
 
   .mast {
     grid-template-columns: 1fr;
     gap: 0.6rem;
+  }
+
+  .lede {
+    max-width: none;
   }
 
   .crate {
@@ -700,6 +959,67 @@ button {
 
   .cue-board {
     grid-template-columns: 1fr;
+  }
+
+  .kept {
+    max-height: 28vh;
+    width: 100%;
+  }
+
+  .kept-head,
+  .kept-empty,
+  .kept-list,
+  .kept-filter {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .kept-item {
+    grid-template-columns: auto 1fr;
+  }
+
+  .kept-actions {
+    grid-column: 1 / -1;
+  }
+
+  .kept-file {
+    max-width: 100%;
+  }
+
+  .transport {
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+      "play clock clock"
+      "scrub scrub scrub"
+      "again again dur";
+  }
+
+  .transport .play {
+    grid-area: play;
+  }
+
+  .transport .clock:first-of-type {
+    grid-area: clock;
+  }
+
+  .transport .scrub {
+    grid-area: scrub;
+  }
+
+  .transport .clock:last-of-type {
+    grid-area: dur;
+  }
+
+  .transport .ghost {
+    grid-area: again;
+  }
+
+  .keep-bar {
+    max-width: none;
+  }
+
+  .keep-btn {
+    flex: 1 1 100%;
   }
 }
 

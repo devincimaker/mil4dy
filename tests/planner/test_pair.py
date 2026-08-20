@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from mil4dy.planner.pair import decide_pair, plan_pair
+from mil4dy.planner.pair import decide_pair, plan_pair, plan_pair_full
 from mil4dy.schemas import Segment, TrackAnalysis
 
 
@@ -97,3 +97,19 @@ def test_plan_pair_is_a_short_two_track_mix():
     # Window should be overlap + pad, not the full 6-minute bodies
     assert plan.target_duration_s < 180
     assert plan.tracks[0].cue_out_s - plan.tracks[0].cue_in_s < 120
+
+
+def test_plan_pair_full_is_both_records_joined_on_the_same_transition():
+    a = _track("out")
+    b = _track("inn")
+    window, d = plan_pair(a, b)
+    plan, full_d = plan_pair_full(a, b)
+    assert full_d.type == d.type
+    assert full_d.length_beats == d.length_beats
+    assert full_d.a_anchor == d.a_anchor
+    assert plan.tracks[0].cue_in_s == 0.0
+    assert abs(plan.tracks[0].cue_out_s - d.out_end_s) < 0.05
+    assert abs(plan.tracks[1].cue_in_s - d.in_start_s) < 0.05
+    assert plan.tracks[1].cue_out_s > b.duration - 5.0
+    assert plan.target_duration_s > window.target_duration_s + 100
+    assert plan.target_duration_s > 300

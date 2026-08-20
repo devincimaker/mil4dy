@@ -24,3 +24,19 @@ export function fmtBpm(bpm: number): string {
 export function prettyType(type: string): string {
   return type.replaceAll("_", " ");
 }
+
+export function fmtWhen(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString(undefined, {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+export function fileTail(path: string): string {
+  const parts = path.split(/[\\/]/);
+  return parts.filter(Boolean).slice(-3).join("/");
+}

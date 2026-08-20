@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from ..planner.pair import PairDecision
 from ..schemas import Segment, TrackAnalysis
+from .history import HistoryRecord, TrackIdentity
 
 
 class SegmentView(BaseModel):
@@ -42,6 +44,8 @@ class TrackView(BaseModel):
 
 
 class DecisionView(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
     type: str
     length_beats: int
     length_bars: float
@@ -70,6 +74,54 @@ class PairResponse(BaseModel):
 class PairRequest(BaseModel):
     a: str
     b: str
+    take_id: str | None = None
+
+
+class RenderView(BaseModel):
+    id: str
+    kind: Literal["blend", "mix"]
+    filename: str
+    url: str
+    download_url: str
+    outgoing: TrackIdentity
+    incoming: TrackIdentity
+    decision: DecisionView
+    take_id: str
+    favorite: bool = False
+    blend_path: str | None = None
+    mix_path: str | None = None
+
+
+class FavoriteRequest(BaseModel):
+    blend_id: str | None = None
+    take_id: str | None = None
+    mix_id: str | None = None
+    favorite: bool = True
+
+
+class AttachMixRequest(BaseModel):
+    mix_id: str | None = None
+    take_id: str | None = None
+
+
+class HistoryView(BaseModel):
+    id: str
+    created_at: str
+    outgoing: TrackIdentity
+    incoming: TrackIdentity
+    decision: DecisionView
+    favorite: bool
+    blend_path: str | None
+    mix_path: str | None
+    blend_filename: str | None
+    mix_filename: str | None
+    blend_url: str | None
+    mix_url: str | None
+    blend_download_url: str | None
+    mix_download_url: str | None
+
+
+FavoriteView = HistoryView
 
 
 def segment_view(s: Segment) -> SegmentView:
@@ -103,6 +155,37 @@ def track_view(rec: TrackAnalysis) -> TrackView:
         segments=[segment_view(s) for s in rec.segments],
         phrase_starts=[round(t, 3) for t in rec.phrase_starts],
     )
+
+
+def identity_view(rec: TrackAnalysis) -> TrackIdentity:
+    return TrackIdentity(
+        id=rec.fingerprint,
+        artist=rec.artist or "Unknown",
+        title=rec.title or Path(rec.path).stem,
+    )
+
+
+def history_view(rec: HistoryRecord, *, blend_abs: str | None, mix_abs: str | None) -> HistoryView:
+    decision = DecisionView.model_validate(rec.decision)
+    return HistoryView(
+        id=rec.id,
+        created_at=rec.created_at,
+        outgoing=rec.outgoing,
+        incoming=rec.incoming,
+        decision=decision,
+        favorite=rec.favorite,
+        blend_path=blend_abs,
+        mix_path=mix_abs,
+        blend_filename=rec.blend_filename,
+        mix_filename=rec.mix_filename,
+        blend_url=f"/api/history/{rec.id}/blend" if rec.blend else None,
+        mix_url=f"/api/history/{rec.id}/mix" if rec.mix else None,
+        blend_download_url=f"/api/history/{rec.id}/blend?download=1" if rec.blend else None,
+        mix_download_url=f"/api/history/{rec.id}/mix?download=1" if rec.mix else None,
+    )
+
+
+favorite_view = history_view
 
 
 def decision_view(d: PairDecision, window_duration_s: float) -> DecisionView:
