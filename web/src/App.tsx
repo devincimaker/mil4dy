@@ -6,7 +6,8 @@ import {
   fetchPair,
   renderMix,
   renderPair,
-  setFavorite,
+  setTakeNote,
+  setVerdict,
   trackAudioUrl,
   triggerDownload,
 } from "./api";
@@ -15,13 +16,15 @@ import { KeepBar } from "./components/KeepBar";
 import { Player } from "./components/Player";
 import { StructureStrip, overlapHint } from "./components/StructureStrip";
 import { fmtBpm, fmtTime, gridWarnLine, prettyType, pulseWarnLine } from "./format";
-import type { HistoryTake, PairResponse, Track } from "./types";
+import type { HistoryTake, PairResponse, Track, Verdict } from "./types";
 
 type Slot = "out" | "in";
 
 interface Take {
   id: string;
   favorite: boolean;
+  verdict: Verdict;
+  note: string;
   blendUrl: string;
   blendFilename: string;
   mixUrl: string | null;
@@ -160,6 +163,8 @@ export function App() {
       const next: Take = {
         id: meta.take_id,
         favorite: meta.favorite,
+        verdict: meta.verdict ?? "none",
+        note: meta.note ?? "",
         blendUrl: meta.url,
         blendFilename: meta.filename,
         mixUrl: null,
@@ -175,29 +180,37 @@ export function App() {
     }
   };
 
-  const favoriteTake = async () => {
+  const applyRecord = (current: Take, rec: HistoryTake): Take => ({
+    ...current,
+    id: rec.id,
+    favorite: rec.favorite,
+    verdict: rec.verdict ?? (rec.favorite ? "favorite" : "none"),
+    note: rec.note ?? "",
+  });
+
+  const changeVerdict = async (verdict: Verdict, note?: string) => {
     const current = takeRef.current;
     if (!current) return;
     setKeepError(null);
     try {
-      const rec = await setFavorite(current.id, true);
-      setTake({ ...current, favorite: rec.favorite });
+      const rec = await setVerdict(current.id, verdict, note);
+      setTake(applyRecord(current, rec));
       await refreshHistory();
     } catch (e) {
-      setKeepError(e instanceof Error ? e.message : "could not favorite");
+      setKeepError(e instanceof Error ? e.message : "could not update verdict");
     }
   };
 
-  const unfavoriteTake = async () => {
+  const saveCurrentNote = async (note: string) => {
     const current = takeRef.current;
     if (!current) return;
     setKeepError(null);
     try {
-      const rec = await setFavorite(current.id, false);
-      setTake({ ...current, favorite: rec.favorite });
+      const rec = await setTakeNote(current.id, note);
+      setTake(applyRecord(current, rec));
       await refreshHistory();
     } catch (e) {
-      setKeepError(e instanceof Error ? e.message : "could not unfavorite");
+      setKeepError(e instanceof Error ? e.message : "could not save note");
     }
   };
 
@@ -250,6 +263,8 @@ export function App() {
     setTake({
       id: item.id,
       favorite: item.favorite,
+      verdict: item.verdict ?? (item.favorite ? "favorite" : "none"),
+      note: item.note ?? "",
       blendUrl: item.blend_url ?? item.mix_url ?? "",
       blendFilename: item.blend_filename ?? item.mix_filename ?? item.id,
       mixUrl: item.mix_url,
@@ -264,16 +279,44 @@ export function App() {
     setKeepError(null);
   };
 
+  const patchTake = (rec: HistoryTake) => {
+    if (takeRef.current?.id === rec.id) {
+      setTake(applyRecord(takeRef.current, rec));
+    }
+  };
+
   const toggleFavorite = async (item: HistoryTake) => {
     setKeepError(null);
     try {
-      const rec = await setFavorite(item.id, !item.favorite);
-      if (takeRef.current?.id === rec.id) {
-        setTake({ ...takeRef.current, favorite: rec.favorite });
-      }
+      const next: Verdict = item.verdict === "favorite" || item.favorite ? "none" : "favorite";
+      const rec = await setVerdict(item.id, next);
+      patchTake(rec);
       await refreshHistory();
     } catch (e) {
       setKeepError(e instanceof Error ? e.message : "could not update favorite");
+    }
+  };
+
+  const toggleDownvote = async (item: HistoryTake) => {
+    setKeepError(null);
+    try {
+      const next: Verdict = item.verdict === "downvoted" ? "none" : "downvoted";
+      const rec = await setVerdict(item.id, next);
+      patchTake(rec);
+      await refreshHistory();
+    } catch (e) {
+      setKeepError(e instanceof Error ? e.message : "could not update downvote");
+    }
+  };
+
+  const saveHistoryNote = async (item: HistoryTake, note: string) => {
+    setKeepError(null);
+    try {
+      const rec = await setTakeNote(item.id, note);
+      patchTake(rec);
+      await refreshHistory();
+    } catch (e) {
+      setKeepError(e instanceof Error ? e.message : "could not save note");
     }
   };
 
@@ -304,7 +347,8 @@ export function App() {
     setInId(outId);
   };
 
-  const favoriteCount = history.filter((t) => t.favorite).length;
+  const favoriteCount = history.filter((t) => t.verdict === "favorite" || t.favorite).length;
+  const downvotedCount = history.filter((t) => t.verdict === "downvoted").length;
 
   return (
     <div className="shell">
@@ -314,7 +358,7 @@ export function App() {
           <span className="edition">pair lab</span>
         </div>
         <p className="lede">
-          Two tracks. Every Hear is saved. Star the ones that work.
+          Two tracks. Every Hear is saved. Star what works. Mark what doesn't.
         </p>
         <div className="mast-meta">
           {tracks.length ? `${tracks.length} in the crate` : "warming the crate…"}
@@ -322,6 +366,7 @@ export function App() {
           {favoriteCount
             ? ` · ${favoriteCount} favorite${favoriteCount === 1 ? "" : "s"}`
             : ""}
+          {downvotedCount ? ` · ${downvotedCount} didn't work` : ""}
         </div>
       </header>
 
@@ -431,12 +476,16 @@ export function App() {
 
               <KeepBar
                 canKeep={!!take}
-                favorited={!!take?.favorite}
+                verdict={take?.verdict ?? "none"}
+                note={take?.note ?? ""}
                 mixBusy={mixBusy}
                 mixElapsed={mixElapsed}
                 busy={renderBusy}
-                onFavorite={() => void favoriteTake()}
-                onUnfavorite={() => void unfavoriteTake()}
+                onFavorite={() => void changeVerdict("favorite")}
+                onUnfavorite={() => void changeVerdict("none")}
+                onDownvote={(note) => void changeVerdict("downvoted", note)}
+                onClearDownvote={() => void changeVerdict("none")}
+                onSaveNote={(note) => void saveCurrentNote(note)}
                 onDownloadBlend={downloadBlend}
                 onDownloadMix={() => void downloadMix()}
               />
@@ -542,6 +591,8 @@ export function App() {
         playingId={listening?.takeId ?? null}
         onPlay={playTake}
         onToggleFavorite={(item) => void toggleFavorite(item)}
+        onToggleDownvote={(item) => void toggleDownvote(item)}
+        onSaveNote={(item, note) => void saveHistoryNote(item, note)}
         onDownloadBlend={downloadHistoryBlend}
         onDownloadMix={downloadHistoryMix}
         onRemove={(item) => void removeTake(item)}

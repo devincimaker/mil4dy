@@ -1,7 +1,8 @@
 """On-disk history of every pair-lab render.
 
 Every Hear and every full-mix write a real WAV under `.mil4dy/history/`.
-Favorite is a flag on a take, not a second copy. Unfavorite does not delete.
+A take has one verdict (unmarked / favorite / downvoted) plus an optional
+debug note. Changing the verdict never deletes the file.
 `LATEST.json` plus `latest-blend.wav` / `latest-mix.wav` point at the newest
 files so a human or a bot can find the last generation without the UI.
 """
@@ -10,17 +11,38 @@ from __future__ import annotations
 
 import json
 import shutil
+import threading
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 INDEX_NAME = "index.json"
 LATEST_NAME = "LATEST.json"
-INDEX_VERSION = 2
+INDEX_VERSION = 3
+
+Verdict = Literal["none", "favorite", "downvoted"]
+VERDICTS: tuple[Verdict, ...] = ("none", "favorite", "downvoted")
+NOTE_UNSET = object()
+
+
+def _read_json(path: Path) -> Any:
+    text = path.read_text()
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        raw, _end = json.JSONDecoder().raw_decode(text)
+        return raw
+
+
+def normalize_note(note: str | None) -> str | None:
+    if note is None:
+        return None
+    stripped = note.strip()
+    return stripped or None
 
 
 class TrackIdentity(BaseModel):
@@ -40,6 +62,27 @@ class HistoryRecord(BaseModel):
     blend_filename: str | None = None
     mix_filename: str | None = None
     favorite: bool = False
+    verdict: Verdict = "none"
+    note: str | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def migrate_verdict(cls, data: Any) -> Any:
+        if not isinstance(data, dict):
+            return data
+        verdict = data.get("verdict")
+        if verdict not in VERDICTS:
+            data["verdict"] = "favorite" if data.get("favorite") else "none"
+        if data.get("note") == "":
+            data["note"] = None
+        return data
+
+    @model_validator(mode="after")
+    def sync_favorite(self) -> HistoryRecord:
+        want = self.verdict == "favorite"
+        if self.favorite != want:
+            object.__setattr__(self, "favorite", want)
+        return self
 
 
 class HistoryIndex(BaseModel):
@@ -50,22 +93,34 @@ class HistoryIndex(BaseModel):
 class HistoryStore:
     def __init__(self, root: Path):
         self.root = Path(root)
+        self._lock = threading.RLock()
 
     def list(self) -> list[HistoryRecord]:
-        return list(self._load().takes)
+        with self._lock:
+            return list(self._load().takes)
 
     def favorites(self) -> list[HistoryRecord]:
-        return [t for t in self.list() if t.favorite]
+        return [t for t in self.list() if t.verdict == "favorite"]
+
+    def downvoted(self) -> list[HistoryRecord]:
+        return [t for t in self.list() if t.verdict == "downvoted"]
+
+    def by_verdict(self, verdict: Verdict | None) -> list[HistoryRecord]:
+        if verdict is None:
+            return self.list()
+        return [t for t in self.list() if t.verdict == verdict]
 
     def get(self, tid: str) -> HistoryRecord | None:
-        for rec in self.list():
-            if rec.id == tid:
-                return rec
-        return None
+        with self._lock:
+            for rec in self._load().takes:
+                if rec.id == tid:
+                    return rec
+            return None
 
     def latest(self) -> HistoryRecord | None:
-        takes = self.list()
-        return takes[0] if takes else None
+        with self._lock:
+            takes = self._load().takes
+            return takes[0] if takes else None
 
     def record_blend(
         self,
@@ -89,9 +144,10 @@ class HistoryStore:
             blend=f"{tid}/blend.wav",
             blend_filename=blend_filename,
         )
-        idx = self._load()
-        idx.takes.insert(0, rec)
-        self._save(idx)
+        with self._lock:
+            idx = self._load()
+            idx.takes.insert(0, rec)
+            self._save(idx)
         return rec
 
     def record_or_attach_mix(
@@ -131,41 +187,72 @@ class HistoryStore:
             mix=f"{tid}/mix.wav",
             mix_filename=mix_filename,
         )
-        idx = self._load()
-        idx.takes.insert(0, rec)
-        self._save(idx)
+        with self._lock:
+            idx = self._load()
+            idx.takes.insert(0, rec)
+            self._save(idx)
         return rec
 
     def attach_mix(self, tid: str, mix_src: Path, mix_filename: str) -> HistoryRecord | None:
-        rec = self.get(tid)
-        if rec is None:
-            return None
         dest = self.root / tid
         dest.mkdir(parents=True, exist_ok=True)
         shutil.copy2(mix_src, dest / "mix.wav")
-        rec = rec.model_copy(update={"mix": f"{tid}/mix.wav", "mix_filename": mix_filename})
-        self._replace(rec)
-        return rec
+        with self._lock:
+            rec = self.get(tid)
+            if rec is None:
+                return None
+            rec = rec.model_copy(update={"mix": f"{tid}/mix.wav", "mix_filename": mix_filename})
+            self._replace(rec)
+            return rec
 
     def set_favorite(self, tid: str, favorite: bool) -> HistoryRecord | None:
-        rec = self.get(tid)
-        if rec is None:
-            return None
-        rec = rec.model_copy(update={"favorite": favorite})
-        self._replace(rec)
-        return rec
+        return self.set_verdict(tid, "favorite" if favorite else "none")
+
+    def set_verdict(
+        self,
+        tid: str,
+        verdict: Verdict,
+        note: str | None | object = NOTE_UNSET,
+    ) -> HistoryRecord | None:
+        if verdict not in VERDICTS:
+            raise ValueError(f"unknown verdict {verdict!r}")
+        with self._lock:
+            rec = self.get(tid)
+            if rec is None:
+                return None
+            payload = rec.model_dump()
+            payload["verdict"] = verdict
+            payload["favorite"] = verdict == "favorite"
+            if note is not NOTE_UNSET:
+                payload["note"] = normalize_note(note if isinstance(note, str) else None)
+            rec = HistoryRecord.model_validate(payload)
+            self._replace(rec)
+            return rec
+
+    def set_note(self, tid: str, note: str | None) -> HistoryRecord | None:
+        with self._lock:
+            rec = self.get(tid)
+            if rec is None:
+                return None
+            rec = HistoryRecord.model_validate({
+                **rec.model_dump(),
+                "note": normalize_note(note),
+            })
+            self._replace(rec)
+            return rec
 
     def remove(self, tid: str) -> HistoryRecord | None:
-        rec = self.get(tid)
-        if rec is None:
-            return None
-        idx = self._load()
-        idx.takes = [r for r in idx.takes if r.id != tid]
-        self._save(idx)
-        folder = self.root / tid
-        if folder.is_dir():
-            shutil.rmtree(folder, ignore_errors=True)
-        return rec
+        with self._lock:
+            rec = self.get(tid)
+            if rec is None:
+                return None
+            idx = self._load()
+            idx.takes = [r for r in idx.takes if r.id != tid]
+            self._save(idx)
+            folder = self.root / tid
+            if folder.is_dir():
+                shutil.rmtree(folder, ignore_errors=True)
+            return rec
 
     def resolve(self, rel: str) -> Path:
         path = (self.root / rel).resolve()
@@ -220,7 +307,7 @@ class HistoryStore:
         if not path.is_file():
             return HistoryIndex()
         try:
-            raw = json.loads(path.read_text())
+            raw = _read_json(path)
         except Exception:
             return HistoryIndex()
         if "takes" not in raw and "favorites" in raw:
@@ -233,9 +320,10 @@ class HistoryStore:
             return HistoryIndex()
 
     def _save(self, idx: HistoryIndex) -> None:
+        idx = idx.model_copy(update={"version": INDEX_VERSION})
         self.root.mkdir(parents=True, exist_ok=True)
         path = self._index_path()
-        tmp = path.with_suffix(".json.tmp")
+        tmp = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
         tmp.write_text(json.dumps(idx.model_dump(), indent=2))
         tmp.replace(path)
         self._write_latest(idx.takes)
@@ -251,6 +339,8 @@ class HistoryStore:
             "outgoing": newest.outgoing.model_dump(),
             "incoming": newest.incoming.model_dump(),
             "favorite": newest.favorite,
+            "verdict": newest.verdict,
+            "note": newest.note,
             "blend_path": str(self.resolve(newest.blend)) if newest.blend else None,
             "mix_path": (
                 str(self.resolve(latest_mix.mix))

@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from ..planner.pair import PairDecision
 from ..schemas import Segment, TrackAnalysis
-from .history import HistoryRecord, TrackIdentity
+from .history import HistoryRecord, TrackIdentity, Verdict
 
 
 class SegmentView(BaseModel):
@@ -99,6 +99,8 @@ class RenderView(BaseModel):
     decision: DecisionView
     take_id: str
     favorite: bool = False
+    verdict: Verdict = "none"
+    note: str | None = None
     blend_path: str | None = None
     mix_path: str | None = None
 
@@ -108,6 +110,15 @@ class FavoriteRequest(BaseModel):
     take_id: str | None = None
     mix_id: str | None = None
     favorite: bool = True
+
+
+class VerdictRequest(BaseModel):
+    verdict: Verdict
+    note: str | None = None
+
+
+class NoteRequest(BaseModel):
+    note: str | None = None
 
 
 class AttachMixRequest(BaseModel):
@@ -122,6 +133,8 @@ class HistoryView(BaseModel):
     incoming: TrackIdentity
     decision: DecisionView
     favorite: bool
+    verdict: Verdict = "none"
+    note: str | None = None
     blend_path: str | None
     mix_path: str | None
     blend_filename: str | None
@@ -185,6 +198,8 @@ def history_view(rec: HistoryRecord, *, blend_abs: str | None, mix_abs: str | No
         incoming=rec.incoming,
         decision=decision,
         favorite=rec.favorite,
+        verdict=rec.verdict,
+        note=rec.note,
         blend_path=blend_abs,
         mix_path=mix_abs,
         blend_filename=rec.blend_filename,

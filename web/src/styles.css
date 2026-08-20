@@ -629,6 +629,7 @@ button {
   gap: 0.55rem;
   margin: 0.85rem 0 0.35rem;
   max-width: 44rem;
+  width: 100%;
 }
 
 .keep-btn {
@@ -649,13 +650,41 @@ button {
   background: oklch(0.74 0.13 58 / 0.16);
 }
 
+.keep-btn.is-down {
+  border-color: var(--danger);
+  background: oklch(0.62 0.16 25 / 0.16);
+  color: var(--danger);
+}
+
 .keep-mix {
   border-color: var(--in-dim);
 }
 
+.keep-note-wrap {
+  display: block;
+  flex: 1 1 100%;
+  min-width: 0;
+  width: 100%;
+}
+
+.keep-note,
+.kept-note {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--line);
+  background: oklch(0.16 0.014 72);
+  color: inherit;
+}
+
+.keep-note:disabled,
+.kept-note:disabled {
+  opacity: 0.45;
+}
+
 .mix-progress {
-  flex: 1 1 8rem;
-  min-width: 8rem;
+  flex: 1 1 100%;
+  width: 100%;
   height: 0.45rem;
   accent-color: var(--in);
 }
@@ -666,19 +695,21 @@ button {
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-  max-height: 22vh;
+  max-height: 36vh;
   border-top: 1px solid var(--line);
   background: oklch(0.18 0.016 72);
 }
 
 .kept-filter {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.35rem;
   padding: 0 1.75rem 0.55rem;
 }
 
 .kept-filter button {
-  min-height: 2.25rem;
+  min-height: 2.75rem;
+  min-width: 2.75rem;
   padding: 0.3rem 0.8rem;
   border: 1px solid var(--line);
   background: transparent;
@@ -691,6 +722,11 @@ button {
 .kept-filter button.is-on {
   border-color: var(--out);
   background: oklch(0.74 0.13 58 / 0.16);
+}
+
+.kept-filter button.is-down {
+  border-color: var(--danger);
+  background: oklch(0.62 0.16 25 / 0.16);
 }
 
 .kept-head {
@@ -734,6 +770,8 @@ button {
   margin: 0;
   padding: 0 1.75rem 1.1rem;
   overflow: auto;
+  flex: 1 1 auto;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
@@ -741,6 +779,9 @@ button {
 
 .kept-item {
   display: grid;
+  grid-template-areas:
+    "verdict main actions"
+    "note note note";
   grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 0.65rem 0.75rem;
   align-items: center;
@@ -749,9 +790,21 @@ button {
   background: oklch(1 0 0 / 0.02);
 }
 
-.star {
+.kept-verdict {
+  grid-area: verdict;
+  display: flex;
+  flex-direction: row;
+  gap: 0.3rem;
+}
+
+.star,
+.down {
+  width: 2.75rem;
+  height: 2.75rem;
   min-height: 2.75rem;
   min-width: 2.75rem;
+  flex: 0 0 2.75rem;
+  padding: 0;
   border: 1px solid var(--line);
   background: transparent;
   font-size: 1.1rem;
@@ -763,6 +816,19 @@ button {
   border-color: var(--out);
   color: var(--out);
   background: oklch(0.74 0.13 58 / 0.16);
+}
+
+.down.is-on {
+  border-color: var(--danger);
+  color: var(--danger);
+  background: oklch(0.62 0.16 25 / 0.16);
+}
+
+.down svg {
+  display: block;
+  width: 1.15rem;
+  height: 1.15rem;
+  margin: 0 auto;
 }
 
 .kept-latest {
@@ -783,7 +849,12 @@ button {
   border-left-color: var(--out);
 }
 
+.kept-item.is-down {
+  border-left-color: var(--danger);
+}
+
 .kept-main {
+  grid-area: main;
   min-width: 0;
   text-align: left;
   background: transparent;
@@ -843,9 +914,17 @@ button {
 }
 
 .kept-actions {
+  grid-area: actions;
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem;
+}
+
+.kept-note-wrap {
+  grid-area: note;
+  display: block;
+  min-width: 0;
+  width: 100%;
 }
 
 .kept-actions button {
@@ -987,7 +1066,7 @@ button {
       "stage"
       "kept";
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto minmax(7rem, 20vh) minmax(16rem, 1fr) minmax(7rem, 22vh);
+    grid-template-rows: auto minmax(5.5rem, 14vh) minmax(10rem, 1fr) minmax(16rem, 42vh);
   }
 
   .mast {
@@ -1018,7 +1097,7 @@ button {
   }
 
   .kept {
-    max-height: 28vh;
+    max-height: none;
     width: 100%;
   }
 
@@ -1030,12 +1109,25 @@ button {
     padding-right: 1rem;
   }
 
+  .kept-head {
+    padding-top: 0.55rem;
+    padding-bottom: 0.3rem;
+  }
+
+  .kept-head h2 {
+    font-size: 1.15rem;
+  }
+
   .kept-item {
-    grid-template-columns: auto 1fr;
+    grid-template-areas:
+      "verdict main"
+      "note note"
+      "actions actions";
+    grid-template-columns: auto minmax(0, 1fr);
   }
 
   .kept-actions {
-    grid-column: 1 / -1;
+    grid-column: auto;
   }
 
   .kept-file {
@@ -1069,6 +1161,7 @@ button {
 
   .keep-btn {
     flex: 1 1 100%;
+    width: 100%;
   }
 }
 

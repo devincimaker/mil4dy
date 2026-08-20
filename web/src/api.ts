@@ -1,4 +1,4 @@
-import type { HistoryTake, PairResponse, RenderMeta, Track } from "./types";
+import type { HistoryTake, PairResponse, RenderMeta, Track, Verdict } from "./types";
 
 async function json<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -52,6 +52,28 @@ export function setFavorite(takeId: string, favorite: boolean): Promise<HistoryT
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ take_id: takeId, favorite }),
+  }).then((r) => json<HistoryTake>(r));
+}
+
+export function setVerdict(
+  takeId: string,
+  verdict: Verdict,
+  note?: string | null,
+): Promise<HistoryTake> {
+  const body: { verdict: Verdict; note?: string | null } = { verdict };
+  if (note !== undefined) body.note = note;
+  return fetch(`/api/history/${takeId}/verdict`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  }).then((r) => json<HistoryTake>(r));
+}
+
+export function setTakeNote(takeId: string, note: string | null): Promise<HistoryTake> {
+  return fetch(`/api/history/${takeId}/note`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ note }),
   }).then((r) => json<HistoryTake>(r));
 }
 

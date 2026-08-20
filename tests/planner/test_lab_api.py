@@ -171,6 +171,54 @@ def test_cannot_favorite_an_unknown_take(tmp_path: Path):
         assert res.status_code == 404
 
 
+def test_downvote_clears_favorite_and_lists_by_verdict(tmp_path: Path, monkeypatch):
+    _stub_render(monkeypatch)
+    with _client(tmp_path) as c:
+        heard = c.post("/api/pair/render", json={"a": "alpha", "b": "beta"}).json()
+        tid = heard["id"]
+        assert heard["verdict"] == "none"
+        assert heard["note"] is None
+        starred = c.post(f"/api/history/{tid}/verdict", json={"verdict": "favorite"})
+        assert starred.json()["verdict"] == "favorite"
+        assert starred.json()["favorite"] is True
+
+        down = c.post(
+            f"/api/history/{tid}/verdict",
+            json={"verdict": "downvoted", "note": "lands on vocal breakdown"},
+        )
+        assert down.status_code == 200
+        body = down.json()
+        assert body["verdict"] == "downvoted"
+        assert body["favorite"] is False
+        assert body["note"] == "lands on vocal breakdown"
+        assert Path(body["blend_path"]).is_file()
+        assert c.get("/api/favorites").json() == []
+        listed = c.get("/api/history", params={"verdict": "downvoted"}).json()
+        assert len(listed) == 1
+        assert listed[0]["id"] == tid
+        assert c.get("/api/history", params={"verdict": "favorite"}).json() == []
+
+        cleared = c.post(f"/api/history/{tid}/verdict", json={"verdict": "none"})
+        assert cleared.json()["verdict"] == "none"
+        assert cleared.json()["note"] == "lands on vocal breakdown"
+        assert Path(cleared.json()["blend_path"]).is_file()
+        assert len(c.get("/api/history").json()) == 1
+
+
+def test_note_can_be_edited_without_changing_verdict(tmp_path: Path, monkeypatch):
+    _stub_render(monkeypatch)
+    with _client(tmp_path) as c:
+        heard = c.post("/api/pair/render", json={"a": "alpha", "b": "beta"}).json()
+        tid = heard["id"]
+        c.post(f"/api/history/{tid}/verdict", json={"verdict": "downvoted"})
+        noted = c.post(f"/api/history/{tid}/note", json={"note": "zapateo first 8 bars"})
+        assert noted.json()["verdict"] == "downvoted"
+        assert noted.json()["note"] == "zapateo first 8 bars"
+        blank = c.post(f"/api/history/{tid}/note", json={"note": ""})
+        assert blank.json()["note"] is None
+        assert blank.json()["verdict"] == "downvoted"
+
+
 def test_pair_flags_broken_intro_grid():
     walk = TrackAnalysis.model_validate_json(_FIXTURE.read_text())
     out = _track(

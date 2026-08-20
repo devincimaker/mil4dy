@@ -80,6 +80,8 @@ export interface TrackIdentity {
   title: string;
 }
 
+export type Verdict = "none" | "favorite" | "downvoted";
+
 export interface RenderMeta {
   id: string;
   kind: "blend" | "mix";
@@ -91,6 +93,8 @@ export interface RenderMeta {
   decision: Decision;
   take_id: string;
   favorite: boolean;
+  verdict: Verdict;
+  note: string | null;
   blend_path: string | null;
   mix_path: string | null;
 }
@@ -102,6 +106,8 @@ export interface HistoryTake {
   incoming: TrackIdentity;
   decision: Decision;
   favorite: boolean;
+  verdict: Verdict;
+  note: string | null;
   blend_path: string | null;
   mix_path: string | null;
   blend_filename: string | null;

@@ -20,14 +20,16 @@ from ..analysis import analyze_library
 from ..planner.pair import PairDecision, plan_pair, plan_pair_full
 from ..render.renderer import render_mix
 from ..schemas import MixPlan, TrackAnalysis
-from .history import HistoryRecord, HistoryStore
+from .history import HistoryRecord, HistoryStore, NOTE_UNSET, VERDICTS, Verdict
 from .views import (
     FavoriteRequest,
     HistoryView,
+    NoteRequest,
     PairRequest,
     PairResponse,
     RenderView,
     TrackView,
+    VerdictRequest,
     decision_view,
     history_view,
     identity_view,
@@ -172,8 +174,10 @@ def create_app(music_dirs: list[Path], force: bool = False,
         return _render_pair(state, body.a, body.b, kind="mix", take_id=body.take_id)
 
     @app.get("/api/history", response_model=list[HistoryView])
-    def list_history() -> list[HistoryView]:
-        return [_take_payload(state, rec) for rec in state.store.list()]
+    def list_history(verdict: Verdict | None = None) -> list[HistoryView]:
+        if verdict is not None and verdict not in VERDICTS:
+            raise HTTPException(400, "verdict must be none, favorite, or downvoted")
+        return [_take_payload(state, rec) for rec in state.store.by_verdict(verdict)]
 
     @app.get("/api/history/latest")
     def latest_take() -> dict:
@@ -197,6 +201,21 @@ def create_app(music_dirs: list[Path], force: bool = False,
     @app.post("/api/history/{tid}/favorite", response_model=HistoryView)
     def star_take(tid: str, favorite: bool = True) -> HistoryView:
         rec = state.store.set_favorite(tid, favorite)
+        if rec is None:
+            raise HTTPException(404, "unknown take")
+        return _take_payload(state, rec)
+
+    @app.post("/api/history/{tid}/verdict", response_model=HistoryView)
+    def set_take_verdict(tid: str, body: VerdictRequest) -> HistoryView:
+        note = body.note if "note" in body.model_fields_set else NOTE_UNSET
+        rec = state.store.set_verdict(tid, body.verdict, note=note)
+        if rec is None:
+            raise HTTPException(404, "unknown take")
+        return _take_payload(state, rec)
+
+    @app.post("/api/history/{tid}/note", response_model=HistoryView)
+    def set_take_note(tid: str, body: NoteRequest) -> HistoryView:
+        rec = state.store.set_note(tid, body.note)
         if rec is None:
             raise HTTPException(404, "unknown take")
         return _take_payload(state, rec)
@@ -342,6 +361,8 @@ def _render_payload(state: LabState, take: HistoryRecord, kind: str,
         decision=view.decision,
         take_id=take.id,
         favorite=take.favorite,
+        verdict=take.verdict,
+        note=take.note,
         blend_path=view.blend_path,
         mix_path=view.mix_path,
     )
